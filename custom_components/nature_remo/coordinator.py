@@ -29,6 +29,7 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
         self.devices = {}
         self.aircons = {}
         self.lights = {}
+        self.locks = {}
         self.ir_remotes = {}
         self.smart_meters = {}
         self.motion_sensors = {}  # motionセンサー用の辞書
@@ -73,6 +74,7 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
             # 初期化
             self.aircons = {}
             self.lights = {}
+            self.locks = {}
             self.smart_meters = {}
             self.ir_remotes = {}
 
@@ -150,6 +152,18 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
                             "device": device_info,
                             "signals": signals,
                         }
+
+                # Qrio Lock の処理
+                elif appliance_type == "QRIO_LOCK" or appliance.get("qrio_lock") is not None:
+                    qrio_lock = appliance.get("qrio_lock", {})
+                    self.locks[appliance_id] = {
+                        "name": nickname,
+                        "appliance_id": appliance_id,
+                        "device": device_info,
+                        "qrio_lock": qrio_lock,
+                        "bd_address": qrio_lock.get("bd_address", ""),
+                        "lock_device": qrio_lock.get("device", {}),
+                    }
 
             return {ac["id"]: ac for ac in appliances}
         except ClientError as err:
