@@ -155,11 +155,12 @@ async def async_setup_entry(
 
 def _local_host_for_device(device_registry, entry: ConfigEntry, remo_device_id: str) -> str | None:
     """The existing per-device "IP Address" option is keyed by the HA device registry id."""
-    device = device_registry.async_get_device(identifiers={(DOMAIN, remo_device_id)})
-    if device is None:
-        return None
-    host = (entry.options.get(device.id) or "").strip()
-    return host or None
+    ident = (DOMAIN, remo_device_id)
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        if ident in device.identifiers:
+            host = (entry.options.get(device.id) or "").strip()
+            return host or None
+    return None
 
 
 class LocalMessagePoller:
