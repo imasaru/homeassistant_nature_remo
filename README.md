@@ -22,6 +22,7 @@ Please use this integration **at your own risk**.
 - Access smart meter data (consumption, generation, instant power) via Nature Remo E / E Lite
 - Control lighting modes using custom service calls
 - Send IR commands using remote entities created from defined signals
+- Optional local (LAN) IR control of supported air conditioners via the Nature Remo local API
 
 ---
 
@@ -126,6 +127,62 @@ Once configured, the selected external sensors will be used for:
 
 - If no external sensors are configured, the integration will continue to use the default values from Nature Remo
 - Any sensor entity with appropriate temperature or humidity values can be used
+
+---
+
+## Local IR control (optional, experimental)
+
+Air conditioners can be controlled **directly over the LAN** through the Nature Remo
+local API (`POST http://<remo-ip>/messages`) instead of the cloud. The integration
+encodes the complete AC state itself and sends it as a raw IR signal, so commands
+are fast, work without internet access, and are not affected by cloud rate limits
+or by cloud-side validation of values such as the temperature step.
+
+Currently supported local IR protocols:
+
+| Protocol          | Air conditioners                                                      |
+|-------------------|-----------------------------------------------------------------------|
+| `fujitsu_arrff2j` | Fujitsu General (nocria) using the AR-RFF2J remote (AEHA, 16-byte frame) |
+
+### Setup
+
+1. Give the Nature Remo a fixed IP address (DHCP reservation) on your router.
+2. *Settings → Devices & Services → Nature Remo → Configure*:
+   - `<Remo name> : IP Address` – the Remo's IP, e.g. `192.168.10.150`
+     (a bare host or `http://host` both work).
+   - `Nature Remo <AC name> : Local IR protocol (none = cloud)` – choose `fujitsu_arrff2j`.
+   - Optional: `<Remo name> : Detect remote presses via local API (poll /messages)` (default off, see below).
+3. Reload the integration (⋮ → Reload) or restart Home Assistant.
+
+Nature Remo nano does not offer the local API.
+
+### Behaviour
+
+- Each change (mode, temperature, fan, swing, on/off) sends **one full-state frame**
+  with a ~3 s timeout. The *power-on* bit is set only when turning on from off.
+- If the local send fails (timeout, connection error, non-2xx), the command is sent through
+  the **cloud API** instead and a warning is logged.
+- Temperature step is 0.5 °C (16–30 °C; cooling 18–30 °C). Modes: off, cool, heat, dry, auto
+  (fan-only cannot be expressed by this protocol).
+- The state is **optimistic** (IR has no feedback) and is restored after a restart.
+  Because local sends never reach the Nature cloud, cloud AC settings are ignored unless
+  they change (e.g. you used the Nature app), and are also ignored for 60 s after a local send.
+- Extra attributes on the climate entity: `local_protocol`, `local_host`,
+  `last_command_path` (`local`, `cloud` or `remote_ir`), `last_local_error`, `last_remote_ir`.
+
+### Detecting physical remote presses (optional)
+
+When enabled, the integration polls `GET /messages` every 2 s. The Remo keeps only the
+**last** IR signal it received, without timestamp, so a press is detected when that signal
+changes and decodes to a valid frame. Limitations:
+
+- The Remo must be able to *see* the remote's IR; place it accordingly.
+- Several presses within one poll interval: only the last one is seen (the protocol always
+  carries the full state, so the final state is still correct). Repeating the exact same
+  press is not detectable (harmless, the state is unchanged).
+- If more than one AC on the same Remo uses the same protocol the press cannot be attributed
+  and is ignored. ACs of the same type elsewhere in the house can still be "overheard".
+- The first poll after startup is only used as a baseline.
 
 ---
 

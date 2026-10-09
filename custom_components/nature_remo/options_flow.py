@@ -6,7 +6,13 @@ from homeassistant.helpers.device_registry import async_get as async_get_device_
 
 import voluptuous as vol
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    LOCAL_PROTOCOLS,
+    LOCAL_PROTOCOL_NONE,
+    OPT_LOCAL_POLL,
+    OPT_LOCAL_PROTOCOL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,11 +40,15 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
             ip_label_suffix = "：IPアドレス"
             ext_temp_label_suffix = "：外部温度センサー"
             ext_humidity_label_suffix = "：外部湿度センサー"
+            local_poll_label_suffix = "：ローカルAPIでリモコン操作を検知（/messagesをポーリング）"
+            local_protocol_label_suffix = "：ローカルIRプロトコル（none=クラウド）"
         else:
             interval_label = "Update Interval (seconds)"
             ip_label_suffix = ": IP Address"
             ext_temp_label_suffix = ": External Temperature Sensor"
             ext_humidity_label_suffix = ": External Humidity Sensor"
+            local_poll_label_suffix = ": Detect remote presses via local API (poll /messages)"
+            local_protocol_label_suffix = ": Local IR protocol (none = cloud)"
 
         # ラベル → optionsキー のマッピング
         # label → options key mapping
@@ -119,6 +129,37 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
                     domain="sensor",
                     device_class="humidity",
                     multiple=False,
+                )
+            )
+
+            # [local-api] デバイスごとのローカル受信ポーリング（既定OFF）
+            # Per Remo device: poll GET /messages to pick up physical remote presses (default off)
+            poll_label = f"{name} {local_poll_label_suffix}"
+            poll_key = OPT_LOCAL_POLL.format(device_id=nature_remo_device_id)
+            label_key_map[poll_label] = poll_key
+            data_schema[
+                vol.Optional(poll_label, default=bool(options.get(poll_key, False)))
+            ] = bool
+
+        # [local-api] エアコンごとのローカルIRプロトコル
+        # Per AC appliance: local IR protocol used with the Remo local API
+        entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
+        coordinator = entry_data.get("coordinator")
+        aircons = getattr(coordinator, "aircons", {}) if coordinator else {}
+        for appliance_id, appliance in aircons.items():
+            ac_name = appliance.get("name", appliance_id)
+            proto_label = f"Nature Remo {ac_name} {local_protocol_label_suffix}"
+            proto_key = OPT_LOCAL_PROTOCOL.format(appliance_id=appliance_id)
+            label_key_map[proto_label] = proto_key
+            data_schema[
+                vol.Optional(
+                    proto_label,
+                    default=options.get(proto_key, LOCAL_PROTOCOL_NONE),
+                )
+            ] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=LOCAL_PROTOCOLS,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
 
