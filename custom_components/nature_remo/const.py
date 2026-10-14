@@ -10,3 +10,6 @@ LOCAL_PROTOCOL_FUJITSU_ARRFF2J = "fujitsu_arrff2j"
 LOCAL_PROTOCOLS = [LOCAL_PROTOCOL_NONE, LOCAL_PROTOCOL_FUJITSU_ARRFF2J]
 
 LOCAL_POLL_INTERVAL = 2  # seconds
+
+# hass.data[DOMAIN][entry_id][OSHIRASE_STORE][appliance_id] -> bool (switch -> climate)
+OSHIRASE_STORE = "oshirase"
