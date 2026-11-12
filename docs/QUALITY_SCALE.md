@@ -93,7 +93,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 3. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
 4. Platform tests toward 95% coverage; strict mypy.
 
-Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.
+Note: main (the お知らせ toggle in switch.py and the Fujitsu footer fixes, identical to the live copy) is merged into this branch, so the toggle and encoder behave exactly as live.
 
 ## Removed: Qrio lock platform (2026-11-13)
 
