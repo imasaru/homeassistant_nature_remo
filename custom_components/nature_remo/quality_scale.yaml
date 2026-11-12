@@ -55,9 +55,9 @@ rules:
     comment: >-
       The integration provides no triggers.
   entity-event-setup:
-    status: todo
+    status: done
     comment: >-
-      Check every platform subscribes in async_added_to_hass via async_on_remove (climate local poller especially).
+      Listeners use async_on_remove (climate, light, lock) or CoordinatorEntity (sensor, remote); the light action map is cleared on removal.
   entity-unique-id:
     status: done
     comment: >-
@@ -88,9 +88,9 @@ rules:
     comment: >-
       send_light_mode raises ServiceValidationError for bad input; API failures in entity actions still only log.
   config-entry-unloading:
-    status: todo
+    status: done
     comment: >-
-      Platforms unload; verify the climate local poller and service are cleaned up on unload.
+      Platforms unload, the climate local poller is cancelled via entry.async_on_unload; tested by a full setup/unload test.
   docs-configuration-parameters:
     status: done
     comment: >-

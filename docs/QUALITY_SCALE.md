@@ -5,13 +5,12 @@ https://developers.home-assistant.io/docs/core/integration-quality-scale/rules.
 The machine-readable version is `custom_components/nature_remo/quality_scale.yaml`.
 
 **Honest tier today: below Bronze.** Every Bronze rule must be done, and these are still open:
-brands, common-modules, entity-event-setup (audit),
-has-entity-name.
+brands (logo in the HA brands repo), common-modules (shared entity.py), has-entity-name.
 
 Entity unique ids are unchanged on purpose, so the renamed `bottom_reeme_*` entity ids keep working.
 The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
-## Bronze (14 done, 4 todo, 2 exempt)
+## Bronze (15 done, 3 todo, 2 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
@@ -28,7 +27,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `docs-installation-instructions` | done | README has HACS and manual install steps. |
 | `docs-removal-instructions` | done | README 'Removing the integration' section. |
 | `docs-triggers` | exempt | The integration provides no triggers. |
-| `entity-event-setup` | todo | Check every platform subscribes in async_added_to_hass via async_on_remove (climate local poller especially). |
+| `entity-event-setup` | done | Listeners use async_on_remove or CoordinatorEntity; light action map cleared on removal. |
 | `entity-unique-id` | done | All entities set unique ids (nature_remo_<platform>_<appliance_id>); unchanged by this branch. |
 | `has-entity-name` | todo | Not set yet. Safe for entity ids (they live in the registry) but changes friendly names, so do it deliberately. |
 | `runtime-data` | done | entry.runtime_data holds the API client and coordinator; hass.data is no longer used. |
@@ -36,12 +35,12 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `test-before-setup` | done | Setup checks the token: rejected -> ConfigEntryAuthFailed (reauth), unreachable -> ConfigEntryNotReady. |
 | `unique-config-entry` | done | Nature account id is the entry unique id; old entries are matched by token and adopt the id on next setup. |
 
-## Silver (5 done, 5 todo, 0 exempt)
+## Silver (6 done, 4 todo, 0 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
 | `action-exceptions` | todo | send_light_mode raises ServiceValidationError for bad input; API failures in entity actions still only log. |
-| `config-entry-unloading` | todo | Platforms unload; verify the climate local poller and service are cleaned up on unload. |
+| `config-entry-unloading` | done | Platforms unload; climate local poller cancelled on unload; tested. |
 | `docs-configuration-parameters` | done | README 'Options (Configure)' section. |
 | `docs-installation-parameters` | done | README 'Setup fields' section. |
 | `entity-unavailable` | todo | Lock and remote report availability; climate, light and sensor do not yet. |
@@ -87,10 +86,11 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
 ## Next steps, in order
 
+0. Submit a logo/icon to home-assistant/brands (custom_integrations/nature_remo) to close the last non-code Bronze rule.
+
 1. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
-2. Add availability for climate, light and sensor; audit unsubscribe-on-remove (climate local poller).
-3. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
-4. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
-5. Platform tests toward 95% coverage; strict mypy.
+2. Add availability for climate, light and sensor (entity-unavailable).
+3. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
+4. Platform tests toward 95% coverage; strict mypy.
 
 Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.

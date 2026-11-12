@@ -119,6 +119,12 @@ class NatureRemoLight(LightEntity):
         self.update_status()
         self.async_write_ha_state()  # 状態をHome Assistantに通知
         self._coordinator.entity_map[self.entity_id] = self
+        entity_id = self.entity_id
+        # Forget this light when it is removed, so the action cannot reach a
+        # stale entity after an unload or rename.
+        self.async_on_remove(
+            lambda: self._coordinator.entity_map.pop(entity_id, None)
+        )
 
     def update_status(self) -> None:
         """
