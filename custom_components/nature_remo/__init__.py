@@ -119,7 +119,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -
         if not taken:
             hass.config_entries.async_update_entry(entry, unique_id=user_id)
 
-    api = NatureRemoAPI(token)
+    api = NatureRemoAPI(token, async_get_clientsession(hass))
     update_interval = entry.options.get("update_interval", DEFAULT_UPDATE_INTERVAL)
     coordinator = NatureRemoCoordinator(hass, api, update_interval)
     await coordinator.async_config_entry_first_refresh()

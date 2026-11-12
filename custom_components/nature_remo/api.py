@@ -1,7 +1,9 @@
 import logging
-import aiohttp
-
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import datetime
+
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 NATURE_REMO_URL = "https://api.nature.global/1"
@@ -13,12 +15,28 @@ class NatureRemoAPI:
     Class to handle Nature Remo API communication.
     """
 
-    def __init__(self, token) -> None:
+    def __init__(
+        self, token: str, session: aiohttp.ClientSession | None = None
+    ) -> None:
         """
         Nature Remo APIの初期化.
         Initialize the Nature Remo API.
+
+        Pass Home Assistant's shared session (async_get_clientsession) so no
+        new connection pool is opened per request. Without one, a short-lived
+        session is created per call as before.
         """
         self._token = token
+        self._shared_session = session
+
+    @asynccontextmanager
+    async def _session(self) -> AsyncIterator[aiohttp.ClientSession]:
+        """Yield the shared session, or a temporary one if none was given."""
+        if self._shared_session is not None:
+            yield self._shared_session
+            return
+        async with aiohttp.ClientSession() as session:
+            yield session
 
     async def _get(self, path: str):
         """
@@ -28,7 +46,7 @@ class NatureRemoAPI:
         headers = {"Authorization": f"Bearer {self._token}"}
         url = f"{NATURE_REMO_URL}{path}"
         async with (
-            aiohttp.ClientSession() as session,
+            self._session() as session,
             session.get(url, headers=headers) as response,
         ):
             if response.status == 429:
@@ -76,7 +94,7 @@ class NatureRemoAPI:
         api_url = f"{NATURE_REMO_URL}/appliances/{appliance_id}/aircon_settings"
 
         async with (
-            aiohttp.ClientSession() as session,
+            self._session() as session,
             session.post(api_url, headers=headers, data=payload) as response,
         ):
             # レート制限系のヘッダを取得・ログ出力
@@ -116,7 +134,7 @@ class NatureRemoAPI:
         payload = {"button": command}
 
         async with (
-            aiohttp.ClientSession() as session,
+            self._session() as session,
             session.post(url, headers=headers, data=payload) as response,
         ):
             # レート制限系のヘッダを取得・ログ出力！
@@ -208,7 +226,7 @@ class NatureRemoAPI:
         api_url = f"{NATURE_REMO_URL}/signals/{signal_id}/send"
         headers = {"Authorization": f"Bearer {self._token}"}
 
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             async with session.post(api_url, headers=headers) as response:
                 if response.status != 200:
                     text = await response.text()

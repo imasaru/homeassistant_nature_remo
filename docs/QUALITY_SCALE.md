@@ -77,12 +77,12 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `repair-issues` | todo | Candidate: warn when the cloud rate limit is hit repeatedly. |
 | `stale-devices` | todo | Implement async_remove_config_entry_device or prune removed appliances. |
 
-## Platinum (1 done, 2 todo, 0 exempt)
+## Platinum (2 done, 1 todo, 0 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
 | `async-dependency` | done | The client is in-tree and fully asyncio (aiohttp). |
-| `inject-websession` | todo | Token check uses Home Assistant's shared session; NatureRemoAPI still opens its own session per request. |
+| `inject-websession` | done | NatureRemoAPI takes Home Assistant's shared aiohttp session. |
 | `strict-typing` | todo | New modules are typed; climate/light/sensor/remote/lock are not, and no strict mypy run yet. |
 
 ## Next steps, in order

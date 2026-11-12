@@ -198,9 +198,9 @@ rules:
     comment: >-
       The client is in-tree and fully asyncio (aiohttp).
   inject-websession:
-    status: todo
+    status: done
     comment: >-
-      Token check uses Home Assistant's shared session; NatureRemoAPI still opens its own session per request.
+      NatureRemoAPI takes Home Assistant's shared aiohttp session (async_get_clientsession); the token check uses it too.
   strict-typing:
     status: todo
     comment: >-
