@@ -817,6 +817,15 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         return self.local_api is not None and self.local_protocol != LOCAL_PROTOCOL_NONE
 
     @property
+    def oshirase(self) -> bool:
+        """お知らせ flag for local frames; owned by the oshirase switch entity."""
+        if self.hass is None:
+            return False
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        store = getattr(getattr(entry, "runtime_data", None), "oshirase", {})
+        return bool(store.get(self._appliance_id, False))
+
+    @property
     def extra_state_attributes(self) -> dict:
         if not self.is_local:
             return {}
@@ -826,6 +835,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             "last_command_path": self._last_command_path,
             "last_local_error": self._last_local_error,
             "last_remote_ir": self._last_remote_ir,
+            "oshirase": self.oshirase,
         }
 
     def _cloud_names(self, key: str) -> list[str]:
@@ -1000,6 +1010,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
                 fan=self._fan_to_protocol(new_fan),
                 swing=self._swing_to_protocol(new_swing),
                 power_on=was_off,  # power-on bit only when turning on from off
+                oshirase=self.oshirase,
             )
             cloud_payload = {"operation_mode": MODE_MAP[new_mode], "button": ""}
             if new_mode != HVACMode.DRY and new_temp is not None:

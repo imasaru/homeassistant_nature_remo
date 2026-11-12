@@ -11,7 +11,9 @@ Frame layout (16 bytes after the 16-bit AEHA address):
   8     fan | swing
   9..12 zero
   13    fixed 0x48
-  14    footer (0xE0 normal / 0xC0 when fan or swing non-default; dry: E0 mild, C0 full)
+  14    footer: base 0x80; bit 0x40 = oshirase (お知らせ) notification; bit 0x20 = dry
+        mild (dry only). Verified against the physical remote (2026-10-15 captures):
+        oshirase OFF -> 0x80 for cool with auto/low fan and swing on/off.
   15    checksum
 Short "util" frames (5 bytes): OFF = 00 08 08 40 BF, high power toggle = 00 08 08 9C 63.
 """
@@ -24,8 +26,9 @@ PROTOCOL = "fujitsu_arrff2j"
 ADDRESS = 0x28C6
 HEADER_BYTES = (0x00, 0x08, 0x08, 0x7F, 0xD0, 0x82)
 FIXED13 = 0x48
-FOOTER_NORMAL = 0xE0
-FOOTER_ALT = 0xC0
+FOOTER_BASE = 0x80
+FOOTER_OSHIRASE = 0x40
+FOOTER_DRY_MILD = 0x20
 POWER_ON_FLAG = 0x80
 DRY_TEMP_BYTE = 0x1E
 
@@ -68,6 +71,7 @@ class FujitsuState:
     swing: str = "off"
     power_on: bool = False
     mild_dry: bool = False
+    oshirase: bool = False  # お知らせ notification flag (footer bit 0x40)
     special: str | None = None  # e.g. "hyper" for util frames
     raw: list[int] = field(default_factory=list)
 
@@ -127,18 +131,20 @@ def encode_state(state: FujitsuState) -> list[int]:
     if state.mode == MODE_DRY:
         msg.append(DRY_TEMP_BYTE | (POWER_ON_FLAG if state.power_on else 0))
         fan_swing = 0x00  # dry: fan auto, no swing (as the ESPHome component)
-        footer = FOOTER_NORMAL if state.mild_dry else FOOTER_ALT
+        footer = FOOTER_BASE | (FOOTER_DRY_MILD if state.mild_dry else 0)
     else:
         temp = state.temperature if state.temperature is not None else 22.5
         msg.append(encode_temperature(temp, state.mode, state.power_on))
         fan = FAN_BYTES.get(state.fan, 0x00)
         swing = SWING_BYTES.get(state.swing, 0x00)
         fan_swing = fan | swing
-        footer = FOOTER_ALT if (state.fan != "auto" or state.swing != "off") else FOOTER_NORMAL
+        footer = FOOTER_BASE
+    if state.oshirase:
+        footer |= FOOTER_OSHIRASE
     msg.append(MODE_BYTES[state.mode])
     msg.append(fan_swing)
     msg += [0, 0, 0, 0, FIXED13, footer]
-    msg.append(checksum(msg))
+    msg.append(checksum(msg))  # checksum covers byte 14, so computed after the footer
     return msg
 
 
@@ -207,13 +213,17 @@ def decode_payload(payload: list[int]) -> FujitsuState | None:
     if mode is None:
         return None
     power_on = bool(payload[6] & POWER_ON_FLAG)
+    footer = payload[14]
+    oshirase = bool(footer & FOOTER_OSHIRASE)  # ignored for state comparison
     if mode == MODE_DRY:
         return FujitsuState(mode=mode, temperature=None, power_on=power_on,
-                            mild_dry=payload[14] == FOOTER_NORMAL, raw=list(payload))
+                            mild_dry=bool(footer & FOOTER_DRY_MILD), oshirase=oshirase,
+                            raw=list(payload))
     fan = {v: k for k, v in FAN_BYTES.items()}.get(payload[8] & 0xF0, "auto")
     swing = {v: k for k, v in SWING_BYTES.items()}.get(payload[8] & 0x0C, "off")
     return FujitsuState(mode=mode, temperature=decode_temperature(payload[6] & 0x7F),
-                        fan=fan, swing=swing, power_on=power_on, raw=list(payload))
+                        fan=fan, swing=swing, power_on=power_on, oshirase=oshirase,
+                        raw=list(payload))
 
 
 def decode_remo_signal(signal: dict) -> FujitsuState | None:

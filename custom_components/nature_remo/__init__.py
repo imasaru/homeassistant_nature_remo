@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
@@ -27,7 +27,7 @@ from .const import DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .coordinator import NatureRemoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "light", "sensor", "remote", "lock"]
+PLATFORMS = ["climate", "light", "sensor", "remote", "lock", "switch"]
 
 
 @dataclass
@@ -36,6 +36,8 @@ class NatureRemoRuntimeData:
 
     api: NatureRemoAPI
     coordinator: NatureRemoCoordinator
+    # お知らせ (notification beep) toggle per AC appliance id: switch -> climate
+    oshirase: dict[str, bool] = field(default_factory=dict)
 
 
 type NatureRemoConfigEntry = ConfigEntry[NatureRemoRuntimeData]

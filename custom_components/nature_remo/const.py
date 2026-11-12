@@ -13,3 +13,6 @@ LOCAL_POLL_INTERVAL = 2  # seconds
 
 DEFAULT_NAME = "Nature Remo"
 DEFAULT_UPDATE_INTERVAL = 60  # seconds
+
+# entry.runtime_data.oshirase[appliance_id] -> bool (switch -> climate)
+OSHIRASE_STORE = "oshirase"
