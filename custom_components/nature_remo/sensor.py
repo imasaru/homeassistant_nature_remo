@@ -5,6 +5,8 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 
+PARALLEL_UPDATES = 0  # read-only, data comes from the coordinator
+
 
 SENSOR_TYPES = {
     "te": {

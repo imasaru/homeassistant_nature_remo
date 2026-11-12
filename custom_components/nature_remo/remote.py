@@ -15,6 +15,7 @@ from .const import DOMAIN
 from .coordinator import NatureRemoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+PARALLEL_UPDATES = 1  # one cloud command at a time per platform
 
 ON_COMMANDS = ["on", "オン"]
 OFF_COMMANDS = ["off", "オフ"]

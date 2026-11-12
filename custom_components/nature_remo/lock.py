@@ -10,6 +10,7 @@ from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+PARALLEL_UPDATES = 1  # one cloud command at a time per platform
 
 
 async def async_setup_entry(

@@ -32,6 +32,7 @@ from .local_api import NatureRemoLocalAPI, NatureRemoLocalError
 from .ir import fujitsu_arrff2j as fujitsu
 
 _LOGGER = logging.getLogger(__name__)
+PARALLEL_UPDATES = 1  # one cloud command at a time per platform
 
 CONF_TOKEN = "token"
 CONF_NAME = "name"

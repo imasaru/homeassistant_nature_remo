@@ -3,9 +3,9 @@
 rules:
   # Bronze
   action-setup:
-    status: todo
+    status: done
     comment: >-
-      send_light_mode is still registered in async_setup_entry; move it to async_setup.
+      send_light_mode is registered once in async_setup (CONFIG_SCHEMA is config-entry only).
   appropriate-polling:
     status: done
     comment: >-
@@ -112,9 +112,9 @@ rules:
     comment: >-
       Coordinator-based entities get this for free; non-coordinator paths need checking.
   parallel-updates:
-    status: todo
+    status: done
     comment: >-
-      Add PARALLEL_UPDATES to each platform.
+      PARALLEL_UPDATES = 1 on command platforms (climate, light, remote, lock), 0 on sensor.
   reauthentication-flow:
     status: done
     comment: >-

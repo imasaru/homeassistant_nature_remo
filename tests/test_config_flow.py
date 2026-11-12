@@ -3,13 +3,12 @@
 from unittest.mock import patch
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_API_KEY, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.nature_remo.api import (
     NatureRemoAuthError,
@@ -184,3 +183,20 @@ async def test_diagnostics_redacts(hass: HomeAssistant) -> None:
     assert "secret-token" not in text
     assert "192.168.1.20" not in text
     assert diag["entry"]["options"]["update_interval"] == 60
+
+
+async def test_light_action_registered_once_and_validates(hass: HomeAssistant) -> None:
+    """send_light_mode is registered by async_setup and rejects unknown lights."""
+    from homeassistant.exceptions import ServiceValidationError
+    from homeassistant.setup import async_setup_component
+
+    assert await async_setup_component(hass, DOMAIN, {})
+    assert hass.services.has_service(DOMAIN, "send_light_mode")
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "send_light_mode",
+            {"entity_id": "light.nope", "mode": "on"},
+            blocking=True,
+            return_response=True,
+        )

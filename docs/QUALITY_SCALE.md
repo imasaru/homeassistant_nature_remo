@@ -5,17 +5,17 @@ https://developers.home-assistant.io/docs/core/integration-quality-scale/rules.
 The machine-readable version is `custom_components/nature_remo/quality_scale.yaml`.
 
 **Honest tier today: below Bronze.** Every Bronze rule must be done, and these are still open:
-action-setup, brands, common-modules, docs-actions, docs-removal-instructions, entity-event-setup (audit),
+brands, common-modules, docs-actions, docs-removal-instructions, entity-event-setup (audit),
 has-entity-name, runtime-data (platforms still read `hass.data`).
 
 Entity unique ids are unchanged on purpose, so the renamed `bottom_reeme_*` entity ids keep working.
 The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
-## Bronze (10 done, 8 todo, 2 exempt)
+## Bronze (11 done, 7 todo, 2 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
-| `action-setup` | todo | send_light_mode is still registered in async_setup_entry; move it to async_setup. |
+| `action-setup` | done | send_light_mode is registered once in async_setup. |
 | `appropriate-polling` | done | 60 s default (2 cloud calls per poll, within Nature's 30 requests / 5 min), user-adjustable in options. |
 | `brands` | todo | No logo/icon in home-assistant/brands custom_integrations yet. |
 | `common-modules` | todo | coordinator.py exists; a shared entity.py base class does not. |
@@ -36,7 +36,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `test-before-setup` | done | Setup checks the token: rejected -> ConfigEntryAuthFailed (reauth), unreachable -> ConfigEntryNotReady. |
 | `unique-config-entry` | done | Nature account id is the entry unique id; old entries are matched by token and adopt the id on next setup. |
 
-## Silver (2 done, 8 todo, 0 exempt)
+## Silver (3 done, 7 todo, 0 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
@@ -47,7 +47,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `entity-unavailable` | todo | Lock and remote report availability; climate, light and sensor do not yet. |
 | `integration-owner` | done | codeowners: @nanosns (upstream), @imasaru (fork). |
 | `log-when-unavailable` | todo | Coordinator-based entities get this for free; non-coordinator paths need checking. |
-| `parallel-updates` | todo | Add PARALLEL_UPDATES to each platform. |
+| `parallel-updates` | done | 1 on command platforms, 0 on sensor. |
 | `reauthentication-flow` | done | reauth_confirm step, refuses a token from a different account. |
 | `test-coverage` | todo | Config flow, setup errors and diagnostics are tested; platforms are not (well under 95%). |
 
@@ -87,11 +87,12 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
 ## Next steps, in order
 
-1. Move `send_light_mode` registration to `async_setup` (action-setup).
-2. Switch platforms and the options flow to `entry.runtime_data`, then drop `hass.data`.
-3. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
-4. Add `PARALLEL_UPDATES` per platform and availability for climate/light/sensor.
-5. README: actions, setup fields, options, removal (closes the Bronze/Silver docs rules).
-6. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
-7. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
-8. Platform tests toward 95% coverage; strict mypy.
+1. Switch platforms and the options flow to `entry.runtime_data`, then drop `hass.data`.
+2. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
+3. Add availability for climate, light and sensor; audit unsubscribe-on-remove (climate local poller).
+4. README: actions, setup fields, options, removal (closes the Bronze/Silver docs rules).
+5. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
+6. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
+7. Platform tests toward 95% coverage; strict mypy.
+
+Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.
