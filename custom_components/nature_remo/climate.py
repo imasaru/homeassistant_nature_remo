@@ -1,24 +1,28 @@
+from __future__ import annotations
+
 import logging
+from typing import Any
 import time
 import voluptuous as vol
-from homeassistant.components.climate import (
-    ClimateEntity,
-    ClimateEntityFeature,
-    HVACMode,
-)
+from homeassistant.components.climate import ClimateEntity
+from homeassistant.components.climate.const import ClimateEntityFeature, HVACMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
+    EventStateChangedData,
     async_track_state_change_event,
     async_track_time_interval,
 )
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.device_registry import DeviceRegistry
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 from datetime import timedelta
+from .api import NatureRemoAPI
 from .coordinator import NatureRemoCoordinator
 from .const import (
     DOMAIN,
@@ -46,6 +50,14 @@ MODE_MAP = {
     HVACMode.FAN_ONLY: "blow",
     HVACMode.AUTO: "auto",
 }
+
+
+def _remo_mode(hvac_mode: HVACMode | None) -> str | None:
+    """Map a Home Assistant HVAC mode to the Nature Remo operation name."""
+    if hvac_mode is None:
+        return None
+    return MODE_MAP.get(hvac_mode)
+
 
 # [local-api] modes the AR-RFF2J encoder can express (fan_only is not encodable)
 LOCAL_HVAC_MODES = [HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT, HVACMode.DRY, HVACMode.AUTO]
@@ -80,7 +92,7 @@ PLATFORM_SCHEMA = vol.Schema(
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-):
+) -> None:
     """
     UI設定からエアコンエンティティを追加.
     Add air conditioner entity from UI configuration.
@@ -139,7 +151,10 @@ async def async_setup_entry(
     for remo_device_id, dev_entities in by_device.items():
         if not entry.options.get(OPT_LOCAL_POLL.format(device_id=remo_device_id), False):
             continue
-        poller = LocalMessagePoller(hass, dev_entities[0].local_api, dev_entities)
+        local_api = dev_entities[0].local_api
+        if local_api is None:
+            continue
+        poller = LocalMessagePoller(hass, local_api, dev_entities)
         entry.async_on_unload(
             async_track_time_interval(
                 hass, poller.async_poll, timedelta(seconds=LOCAL_POLL_INTERVAL)
@@ -148,11 +163,13 @@ async def async_setup_entry(
         _LOGGER.info(
             "Local /messages polling enabled for Remo %s (%s)",
             remo_device_id,
-            dev_entities[0].local_api.host,
+            local_api.host,
         )
 
 
-def _local_host_for_device(device_registry, entry: ConfigEntry, remo_device_id: str) -> str | None:
+def _local_host_for_device(
+    device_registry: DeviceRegistry, entry: ConfigEntry, remo_device_id: str
+) -> str | None:
     """The existing per-device "IP Address" option is keyed by the HA device registry id."""
     ident = (DOMAIN, remo_device_id)
     for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
@@ -170,16 +187,21 @@ class LocalMessagePoller:
     The first read is only a baseline (it may be an old signal).
     """
 
-    def __init__(self, hass, local_api: NatureRemoLocalAPI, entities) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        local_api: NatureRemoLocalAPI,
+        entities: list[NatureRemoClimate],
+    ) -> None:
         self._hass = hass
         self._api = local_api
         self._entities = entities
-        self._last_raw = None
+        self._last_raw: tuple[Any, ...] | None = None
         self._baseline_done = False
         self._busy = False
         self._error_logged = False
 
-    async def async_poll(self, _now=None) -> None:
+    async def async_poll(self, _now: Any = None) -> None:
         if self._busy:
             return
         self._busy = True
@@ -197,7 +219,7 @@ class LocalMessagePoller:
                 self._baseline_done = True
                 self._last_raw = raw
                 return
-            if raw == self._last_raw or not raw:
+            if raw == self._last_raw or not raw or not isinstance(signal, dict):
                 return
             self._last_raw = raw
             fujitsu_entities = [
@@ -230,10 +252,10 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
     def __init__(
         self,
         coordinator: NatureRemoCoordinator,
-        appliance,
-        device,
-        api,
-        entry_id: str = None,  # [Issue#4] entry_idのみ受け取る（hassはself.hassで参照）
+        appliance: dict[str, Any],
+        device: dict[str, Any],
+        api: NatureRemoAPI,
+        entry_id: str | None = None,  # [Issue#4] entry_idのみ受け取る（hassはself.hassで参照）
         local_protocol: str = LOCAL_PROTOCOL_NONE,
         local_api: NatureRemoLocalAPI | None = None,
     ) -> None:
@@ -246,16 +268,16 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             self._appliance = appliance
             self._device = device
             self._appliance_id = appliance["appliance_id"]
-            self._temperature = None
-            self._humidity = None
-            self._hvac_modes = [HVACMode.OFF]
-            self._hvac_mode = HVACMode.OFF
+            self._temperature: float | None = None
+            self._humidity: float | None = None
+            self._hvac_modes: list[HVACMode] = [HVACMode.OFF]
+            self._hvac_mode: HVACMode | None = HVACMode.OFF
             self._button = "power-off"
             self._api = api
-            self._target_temperature = 25
+            self._target_temperature: float | None = 25.0
             self._fan_mode = "auto"
             self._swing_mode = "auto"
-            self._aircon_range_modes = {}
+            self._aircon_range_modes: dict[str, Any] = {}
 
             # [Issue#4] entry_idを保持（optionsはself.hassから都度取得する）
             # self.hassはasync_added_to_hass()以降にHAフレームワークが自動セットする
@@ -276,7 +298,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             _LOGGER.error(f"Error initializing NatureRemoClimate: {e}")
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         return {
             "identifiers": {(DOMAIN, self._device["device_id"])},
             "name": self._device["name"],
@@ -285,7 +307,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         }
 
     @property
-    def supported_features(self) -> int:
+    def supported_features(self) -> ClimateEntityFeature:
         """対応している機能を定義. / Define the features supported by this entity."""
         _LOGGER.debug(f"[{self._attr_name}] Start supported_features")
         support_feature = ClimateEntityFeature(0)
@@ -314,8 +336,8 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         _LOGGER.debug(f"[{self._attr_name}] Start target_temperature_step")
         if self.is_local:
             return fujitsu.TEMP_STEP
-        remo_mode = MODE_MAP.get(self._hvac_mode)
-        temp_list = self._aircon_range_modes.get(remo_mode, {}).get("temp", [])
+        remo_mode = _remo_mode(self._hvac_mode)
+        temp_list = self._aircon_range_modes.get(remo_mode or "", {}).get("temp", [])
         temp_list = list(map(float, filter(None, temp_list)))
 
         if not temp_list:
@@ -332,33 +354,33 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         return step
 
     @property
-    def min_temp(self):
+    def min_temp(self) -> float:
         """設定可能な最低温度. / Return the minimum temperature that can be set."""
         _LOGGER.debug(f"[{self._attr_name}] Start min_temp")
         if self.is_local:
             return fujitsu.COOL_MIN if self._hvac_mode == HVACMode.COOL else fujitsu.TEMP_MIN
-        remo_mode = MODE_MAP.get(self._hvac_mode)
-        temp_list = self._aircon_range_modes.get(remo_mode, {}).get("temp", [])
+        remo_mode = _remo_mode(self._hvac_mode)
+        temp_list = self._aircon_range_modes.get(remo_mode or "", {}).get("temp", [])
         temp_list = list(map(float, filter(None, temp_list)))
         if not temp_list:
             return 0.0
 
         _LOGGER.debug(f"min_temp: {min(temp_list)}")
-        return min(temp_list)
+        return float(min(temp_list))
 
     @property
-    def max_temp(self):
+    def max_temp(self) -> float:
         """設定可能な最高温度. / Return the maximum temperature that can be set."""
         if self.is_local:
             return fujitsu.TEMP_MAX
-        remo_mode = MODE_MAP.get(self._hvac_mode)
-        temp_list = self._aircon_range_modes.get(remo_mode, {}).get("temp", [])
+        remo_mode = _remo_mode(self._hvac_mode)
+        temp_list = self._aircon_range_modes.get(remo_mode or "", {}).get("temp", [])
         temp_list = list(map(float, filter(None, temp_list)))
         if not temp_list:
             return 0.0
 
         _LOGGER.debug(f"max_temp: {max(temp_list)}")
-        return max(temp_list)
+        return float(max(temp_list))
 
     @property
     def current_temperature(self) -> float | None:
@@ -366,12 +388,12 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         return self._temperature
 
     @property
-    def current_humidity(self) -> int | None:
+    def current_humidity(self) -> float | None:
         """現在の湿度を返す / Return the current room humidity."""
         return self._humidity
 
     @property
-    def name(self):
+    def name(self) -> str | None:
         """エアコンの表示名を返す. / Return the display name of the air conditioner."""
         return self._attr_name
 
@@ -381,14 +403,14 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         return UnitOfTemperature.CELSIUS
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode | None:
         """現在の動作モード. / Current operation mode of the air conditioner."""
         if self._button == "power-off":
             return HVACMode.OFF
         return self._hvac_mode
 
     @property
-    def hvac_modes(self):
+    def hvac_modes(self) -> list[HVACMode]:
         """サポートするモード. / List of supported HVAC modes."""
         if self.is_local:
             return LOCAL_HVAC_MODES
@@ -399,16 +421,18 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         """設定可能な風量のリスト. / List of available fan modes."""
         if self.is_local:
             return self._local_fan_names()
-        remo_mode = MODE_MAP.get(self._hvac_mode)
-        return self._aircon_range_modes.get(remo_mode, {}).get("vol", [])
+        remo_mode = _remo_mode(self._hvac_mode)
+        result = self._aircon_range_modes.get(remo_mode or "", {}).get("vol", [])
+        return list(result) if result else []
 
     @property
     def swing_modes(self) -> list[str] | None:
         """設定可能な風向きのリスト. / List of available swing modes."""
         if self.is_local:
             return self._local_swing_names()
-        remo_mode = MODE_MAP.get(self._hvac_mode)
-        return self._aircon_range_modes.get(remo_mode, {}).get("dir", [])
+        remo_mode = _remo_mode(self._hvac_mode)
+        result = self._aircon_range_modes.get(remo_mode or "", {}).get("dir", [])
+        return list(result) if result else []
 
     @property
     def target_temperature(self) -> float | None:
@@ -610,7 +634,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         # async_write_ha_state() is not thread-safe; use schedule_update_ha_state() instead
         self.schedule_update_ha_state()
 
-    def get_remo_mode_to_hvac_mode(self, remo_mode) -> HVACMode | None:
+    def get_remo_mode_to_hvac_mode(self, remo_mode: str) -> HVACMode | None:
         """
         Nature Remoの動作モードをHomeAssistantの動作モードに変換する.
         Convert Nature Remo operation mode to Home Assistant HVAC mode.
@@ -643,7 +667,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
 
         return entity_ids
 
-    def _on_external_sensor_state_changed(self, event) -> None:
+    def _on_external_sensor_state_changed(self, event: Event[EventStateChangedData]) -> None:
         """
         [Issue#4 案B] 外部センサーの状態変化を検知したらupdate_statusを呼ぶ.
         Called when an external sensor state changes; triggers update_status.
@@ -664,7 +688,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         )
         self.update_status()
 
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """
         エンティティがHome Assistantに追加されたら更新をトリガー.
         Trigger update when the entity is added to Home Assistant.
@@ -702,7 +726,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         self.update_status()
         self.async_write_ha_state()
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """エアコンのモードを変更. / Change the operation mode of the air conditioner."""
         _LOGGER.info("Setting HVAC mode: %s", hvac_mode)
         if hvac_mode not in self.hvac_modes:
@@ -713,16 +737,20 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             await self._async_local_set(hvac_mode=hvac_mode)
             return
 
+        payload: dict[str, Any]
         if hvac_mode == HVACMode.OFF:
             payload = {"button": "power-off"}
             self._button = "power-off"
         else:
             operation_mode = MODE_MAP.get(hvac_mode)
+            if operation_mode is None:
+                _LOGGER.warning("Unsupported HVAC mode: %s", hvac_mode)
+                return
             payload = {"operation_mode": operation_mode}
             self._button = ""
             self._hvac_mode = hvac_mode
 
-        response = await self._api.send_command_climate(payload, self._appliance_id)
+        response = await self._api.send_command_climate(payload, self._appliance_id) or {}
         _LOGGER.info("Set HVACMode: %s", response)
         self._hvac_mode = self.get_remo_mode_to_hvac_mode(response.get("mode", ""))
         if self._hvac_mode is HVACMode.FAN_ONLY:
@@ -736,7 +764,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
 
         self.async_write_ha_state()
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """エアコンの温度を変更. / Change the temperature setting of the air conditioner."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if self.is_local:
@@ -748,7 +776,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             _LOGGER.warning("温度が指定されていません！")
             return
 
-        operation_mode = MODE_MAP.get(self._hvac_mode)
+        operation_mode = _remo_mode(self._hvac_mode)
         if operation_mode is None:
             _LOGGER.error("Invalid HVAC mode: %s", self._hvac_mode)
             return
@@ -777,7 +805,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         if self.is_local:
             await self._async_local_set(fan_mode=fan_mode)
             return
-        operation_mode = MODE_MAP.get(self._hvac_mode)
+        operation_mode = _remo_mode(self._hvac_mode)
         if operation_mode is None:
             _LOGGER.error("Invalid HVAC mode: %s", self._hvac_mode)
             return
@@ -797,7 +825,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         if self.is_local:
             await self._async_local_set(swing_mode=swing_mode)
             return
-        operation_mode = MODE_MAP.get(self._hvac_mode)
+        operation_mode = _remo_mode(self._hvac_mode)
         if operation_mode is None:
             _LOGGER.error("Invalid HVAC mode: %s", self._hvac_mode)
             return
@@ -819,19 +847,20 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
     @property
     def oshirase(self) -> bool:
         """お知らせ flag for local frames; owned by the oshirase switch entity."""
-        if self.hass is None:
+        entry_id = self._entry_id
+        if entry_id is None:
             return False
-        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        entry = self.hass.config_entries.async_get_entry(entry_id)
         store = getattr(getattr(entry, "runtime_data", None), "oshirase", {})
         return bool(store.get(self._appliance_id, False))
 
     @property
-    def extra_state_attributes(self) -> dict:
+    def extra_state_attributes(self) -> dict[str, Any]:
         if not self.is_local:
             return {}
         return {
             "local_protocol": self.local_protocol,
-            "local_host": self.local_api.host,
+            "local_host": self.local_api.host if self.local_api is not None else None,
             "last_command_path": self._last_command_path,
             "last_local_error": self._last_local_error,
             "last_remote_ir": self._last_remote_ir,
@@ -858,7 +887,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
         """(non-auto fan names in ascending order, matching protocol levels)."""
         names = [n for n in self._local_fan_names() if n != "auto"]
 
-        def sort_key(name: str):
+        def sort_key(name: str) -> tuple[int, float]:
             try:
                 return (0, float(name))
             except ValueError:
@@ -909,7 +938,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
                 return name
         return names[-1]
 
-    def _accept_cloud_settings(self, settings: dict) -> bool:
+    def _accept_cloud_settings(self, settings: dict[str, Any]) -> bool:
         """For local ACs only take cloud AC settings when they changed (e.g. the
         Nature app or a cloud fallback was used) and no local send happened in the
         last LOCAL_CLOUD_HOLD_SECONDS. The cloud never learns about local IR sends."""
@@ -1021,15 +1050,18 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
                 cloud_payload["air_direction"] = new_swing
 
         signal = fujitsu.build_signal(state)
+        local_api = self.local_api
+        if local_api is None:
+            return
         try:
-            await self.local_api.send_signal(signal)
+            await local_api.send_signal(signal)
             self._last_command_path = "local"
             self._last_local_error = None
             self._last_local_send = time.monotonic()
             _LOGGER.info(
                 "[%s] sent locally via %s: %s",
                 self._attr_name,
-                self.local_api.host,
+                local_api.host,
                 " ".join(f"{b:02X}" for b in fujitsu.encode_state(state)),
             )
         except NatureRemoLocalError as err:
@@ -1037,7 +1069,7 @@ class NatureRemoClimate(ClimateEntity, RestoreEntity):
             _LOGGER.warning(
                 "[%s] local send to %s failed (%s); falling back to cloud API",
                 self._attr_name,
-                self.local_api.host,
+                local_api.host,
                 err,
             )
             await self._api.send_command_climate(cloud_payload, self._appliance_id)

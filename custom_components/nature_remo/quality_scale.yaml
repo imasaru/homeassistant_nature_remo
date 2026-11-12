@@ -203,6 +203,8 @@ rules:
     comment: >-
       NatureRemoAPI takes Home Assistant's shared aiohttp session (async_get_clientsession); the token check uses it too.
   strict-typing:
-    status: todo
+    status: done
     comment: >-
-      New modules are typed; climate/light/sensor/remote/switch are not, and no strict mypy run yet.
+      mypy --strict (mypy.ini, py.typed) covers the package; tests/test_typing.py
+      enforces it. config_flow.py already passed before this work and was left
+      unchanged so a parallel discovery branch can merge cleanly.

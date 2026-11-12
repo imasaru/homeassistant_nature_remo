@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from typing import Any
 
 from homeassistant.components.remote import RemoteEntity
@@ -8,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .api import NatureRemoAPI
@@ -63,7 +65,7 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         self._remote_info = remote_info
         self._commands = {s["name"].lower(): s["id"] for s in remote_info["signals"]}
 
-        self._attr_state = "off"
+        self._last_command = "off"
         # コマンド候補を保存
         self._power_on_id = next(
             (self._commands[c] for c in ON_COMMANDS if c in self._commands), None
@@ -73,7 +75,7 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         )
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """
         Home Assistantのデバイス一覧に表示するための基本情報を返す.
         Returns basic device info for display in Home Assistant's device registry.
@@ -90,7 +92,7 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         """このエンティティの追加属性を返却する. / Return extra attributes for this entity."""
         return {
             "available_commands": list(self._commands.keys()),
-            "command": self._attr_state,
+            "command": self._last_command,
         }
 
     @property
@@ -98,12 +100,12 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
         """このエンティティが利用可能かどうかを返却する. / Return whether this entity is available."""
         return super().available and bool(self._commands)
 
-    @property
-    def state(self) -> str | None:
+    @property  # type: ignore[misc]
+    def state(self) -> str | None:  # type: ignore[override]
         """現在の状態（最後に送信されたコマンド）を返却する. / Return the current state (last command sent)."""
-        return self._attr_state
+        return self._last_command
 
-    async def async_send_command(self, command: str | list[str], **kwargs: Any) -> None:
+    async def async_send_command(self, command: Iterable[str], **kwargs: Any) -> None:
         """指定されたコマンドをリモコンに送信します。 / Send a command to the remote."""
         if isinstance(command, str):
             command = [command]
@@ -118,28 +120,28 @@ class NatureRemoRemoteEntity(CoordinatorEntity[NatureRemoCoordinator], RemoteEnt
             await self.coordinator.api.send_command_signal(signal_id)
 
             if normalized_cmd in ON_COMMANDS:
-                self._attr_state = "on"
+                self._last_command = "on"
             elif normalized_cmd in OFF_COMMANDS:
-                self._attr_state = "off"
+                self._last_command = "off"
             else:
-                self._attr_state = cmd
+                self._last_command = cmd
             self.async_write_ha_state()
 
-    async def async_turn_on(self) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """turn_on サービス呼び出し時の処理 / Handle the turn_on service call."""
         if self._power_on_id:
             await self.coordinator.api.send_command_signal(self._power_on_id)
-            self._attr_state = "on"
+            self._last_command = "on"
             self.async_write_ha_state()
         else:
             _LOGGER.debug(f"Power ON command not available for {self.name}")
             raise HomeAssistantError(f"Power ON command not available for {self.name}")
 
-    async def async_turn_off(self) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """turn_off サービス呼び出し時の処理. / Handle the turn_off service call."""
         if self._power_off_id:
             await self.coordinator.api.send_command_signal(self._power_off_id)
-            self._attr_state = "off"
+            self._last_command = "off"
             self.async_write_ha_state()
         else:
             _LOGGER.debug(f"Power OFF command not available for {self.name}")

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.helpers import selector
@@ -23,7 +26,9 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
     Defines the options flow for Nature Remo integration.
     """
 
-    async def async_step_init(self, user_input=None):
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
 
         device_registry = async_get_device_registry(self.hass)
         devices = [
@@ -56,7 +61,7 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
         label_key_map = {}
 
         interval_default = options.get("update_interval", 60)
-        data_schema = {
+        data_schema: dict[Any, Any] = {
             vol.Optional(interval_label, default=interval_default): vol.In(
                 [30, 60, 90]
             ),

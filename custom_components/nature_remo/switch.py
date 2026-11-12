@@ -8,6 +8,7 @@ prebuilt signals always have oshirase OFF). Default: OFF.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
@@ -15,6 +16,7 @@ from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
 
 from .const import DOMAIN, LOCAL_PROTOCOL_FUJITSU_ARRFF2J, LOCAL_PROTOCOL_NONE, OPT_LOCAL_PROTOCOL
 
@@ -41,7 +43,7 @@ class OshiraseSwitch(SwitchEntity, RestoreEntity):
     _attr_icon = "mdi:bell-ring-outline"
     _attr_should_poll = False
 
-    def __init__(self, store: dict, appliance: dict) -> None:
+    def __init__(self, store: dict[str, bool], appliance: dict[str, Any]) -> None:
         self._store = store
         self._appliance_id = appliance["appliance_id"]
         self._attr_unique_id = f"nature_remo_oshirase_{self._appliance_id}"
@@ -52,7 +54,7 @@ class OshiraseSwitch(SwitchEntity, RestoreEntity):
         self._device_id = device.get("device_id")
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         if not self._device_id:
             return None
         return {"identifiers": {(DOMAIN, self._device_id)}}  # same device as the climate
@@ -67,10 +69,10 @@ class OshiraseSwitch(SwitchEntity, RestoreEntity):
         self._store[self._appliance_id] = last is not None and last.state == STATE_ON
         self.async_write_ha_state()
 
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         self._store[self._appliance_id] = True
         self.async_write_ha_state()
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         self._store[self._appliance_id] = False
         self.async_write_ha_state()

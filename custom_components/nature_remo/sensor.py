@@ -1,14 +1,26 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone, timedelta
+from typing import Any
+
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.helpers.entity import DeviceInfo  # type: ignore[attr-defined]
+
 from .coordinator import NatureRemoCoordinator
 from .const import DOMAIN
 
 PARALLEL_UPDATES = 0  # read-only, data comes from the coordinator
 
 
-SENSOR_TYPES = {
+SENSOR_TYPES: dict[str, dict[str, Any]] = {
     "te": {
         "name": "Temperature",
         "unit": "°C",
@@ -48,7 +60,9 @@ SENSOR_TYPES = {
 }
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """
     インテグレーション初期化時に呼ばれるセットアップ関数
     Nature Remoから取得した情報を元にセンサーエンティティを追加する
@@ -57,7 +71,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     Adds sensor entities based on information retrieved from Nature Remo.
     """
     coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
-    entities = []
+    entities: list[SensorEntity | BinarySensorEntity] = []
 
     # 電気使用量センサー
     for appliance_id, data in coordinator.smart_meters.items():
@@ -125,8 +139,16 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(entities)
 
 
-class NatureRemoSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, coordinator, appliance_id, name, device, key, description):
+class NatureRemoSensor(CoordinatorEntity[NatureRemoCoordinator], SensorEntity):
+    def __init__(
+        self,
+        coordinator: NatureRemoCoordinator,
+        appliance_id: str,
+        name: str,
+        device: dict[str, Any],
+        key: str,
+        description: dict[str, Any],
+    ) -> None:
         """
         センサークラスの初期化
         Initialize a base sensor entity for Nature Remo.
@@ -142,7 +164,7 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         self._key = key
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """
         デバイス情報を返却する
         Return device info to be shown in Home Assistant UI.
@@ -155,7 +177,7 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def native_value(self):
+    def native_value(self) -> Any:
         """
         センサーの現在値を返却する
         Return the current value of the sensor.
@@ -170,7 +192,7 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         return self.coordinator.smart_meters[self._appliance_id][self._key]
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, str]:
         """
         センサーに追加の属性（Attributes）を付与する
         照度センサー（il）の場合、Nature Remoが返す0〜200の相対的な明るさスケールを補足情報として返す。
@@ -178,7 +200,7 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         Adds extra attributes to the sensor.
         For illuminance sensors ("il"), it returns supplemental info about Nature Remo's relative brightness scale (0–200).
         """
-        attributes = {}
+        attributes: dict[str, str] = {}
 
         if self._key == "il":
             attributes["raw_sensor_scale"] = "0-200"
@@ -187,8 +209,14 @@ class NatureRemoSensor(CoordinatorEntity, SensorEntity):
         return attributes
 
 
-class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
-    def __init__(self, coordinator, device_id, name, device):
+class NatureRemoMotionTimeSensor(CoordinatorEntity[NatureRemoCoordinator], SensorEntity):
+    def __init__(
+        self,
+        coordinator: NatureRemoCoordinator,
+        device_id: str,
+        name: str,
+        device: dict[str, Any],
+    ) -> None:
         """
         モーション検出時刻センサーの初期化
         Initialize the motion detection timestamp sensor.
@@ -202,7 +230,7 @@ class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
         self._attr_native_unit_of_measurement = None
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """
         モーション検出時刻センサーのデバイス情報
         Return device info for the motion time sensor.
@@ -215,19 +243,28 @@ class NatureRemoMotionTimeSensor(CoordinatorEntity, SensorEntity):
         }
 
     @property
-    def native_value(self):
+    def native_value(self) -> str | None:
         """
         最新のモーション検出時刻をISO形式で返す
         Return the last motion detection timestamp in ISO format.
         """
         motion = self.coordinator.motion_sensors.get(self._device_id)
-        if motion and "last_motion" in motion:
-            return motion["last_motion"].isoformat()
+        last = motion.get("last_motion") if motion else None
+        if isinstance(last, datetime):
+            return last.isoformat()
         return None
 
 
-class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):
-    def __init__(self, coordinator, device_id, name, device):
+class NatureRemoMotionBinarySensor(
+    CoordinatorEntity[NatureRemoCoordinator], BinarySensorEntity
+):
+    def __init__(
+        self,
+        coordinator: NatureRemoCoordinator,
+        device_id: str,
+        name: str,
+        device: dict[str, Any],
+    ) -> None:
         """
         モーション検出センサーの初期化
         Initialize the binary motion sensor entity.
@@ -237,10 +274,10 @@ class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._device_id = device_id
         self._attr_name = f"Nature Remo {name} Motion"
         self._attr_unique_id = f"{device_id}_motion"
-        self._attr_device_class = "motion"
+        self._attr_device_class = BinarySensorDeviceClass.MOTION
 
     @property
-    def device_info(self):
+    def device_info(self) -> DeviceInfo | None:
         """
         モーション検出センサーのデバイス情報
         Return device info for the motion sensor.
@@ -253,13 +290,14 @@ class NatureRemoMotionBinarySensor(CoordinatorEntity, BinarySensorEntity):
         }
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """
         最後にモーション検出してから5分以内の場合は「ON」を返す
         Return True if motion was detected within the last 5 minutes.
         """
         motion = self.coordinator.motion_sensors.get(self._device_id)
-        if motion and "last_motion" in motion:
+        last = motion.get("last_motion") if motion else None
+        if isinstance(last, datetime):
             now = datetime.now(timezone.utc)
-            return (now - motion["last_motion"]) < timedelta(minutes=5)
+            return (now - last) < timedelta(minutes=5)
         return False
