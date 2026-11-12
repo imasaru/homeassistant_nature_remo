@@ -31,9 +31,9 @@ rules:
     comment: >-
       Only aiohttp, which Home Assistant ships.
   docs-actions:
-    status: todo
+    status: done
     comment: >-
-      Document the send_light_mode action in the README.
+      README 'Actions' section.
   docs-conditions:
     status: exempt
     comment: >-
@@ -47,9 +47,9 @@ rules:
     comment: >-
       README has HACS and manual install steps.
   docs-removal-instructions:
-    status: todo
+    status: done
     comment: >-
-      README needs a removal section.
+      README 'Removing the integration' section.
   docs-triggers:
     status: exempt
     comment: >-
@@ -92,13 +92,13 @@ rules:
     comment: >-
       Platforms unload; verify the climate local poller and service are cleaned up on unload.
   docs-configuration-parameters:
-    status: todo
+    status: done
     comment: >-
-      Document the options (update interval, Remo IPs, local poll, local IR protocol).
+      README 'Options (Configure)' section.
   docs-installation-parameters:
-    status: todo
+    status: done
     comment: >-
-      Document the name and access token fields (strings.json already describes them).
+      README 'Setup fields' section.
   entity-unavailable:
     status: todo
     comment: >-

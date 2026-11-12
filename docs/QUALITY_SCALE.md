@@ -5,13 +5,13 @@ https://developers.home-assistant.io/docs/core/integration-quality-scale/rules.
 The machine-readable version is `custom_components/nature_remo/quality_scale.yaml`.
 
 **Honest tier today: below Bronze.** Every Bronze rule must be done, and these are still open:
-brands, common-modules, docs-actions, docs-removal-instructions, entity-event-setup (audit),
+brands, common-modules, entity-event-setup (audit),
 has-entity-name.
 
 Entity unique ids are unchanged on purpose, so the renamed `bottom_reeme_*` entity ids keep working.
 The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
-## Bronze (12 done, 6 todo, 2 exempt)
+## Bronze (14 done, 4 todo, 2 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
@@ -22,11 +22,11 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `config-flow` | done | UI setup with token check, data_description, token in data and settings in options. |
 | `config-flow-test-coverage` | done | tests/test_config_flow.py: success, each error with recovery, duplicates, reauth, reconfigure. |
 | `dependency-transparency` | done | Only aiohttp, which Home Assistant ships. |
-| `docs-actions` | todo | Document the send_light_mode action in the README. |
+| `docs-actions` | done | README 'Actions' section. |
 | `docs-conditions` | exempt | The integration provides no conditions. |
 | `docs-high-level-description` | done | README describes Nature Remo and what the integration controls. |
 | `docs-installation-instructions` | done | README has HACS and manual install steps. |
-| `docs-removal-instructions` | todo | README needs a removal section. |
+| `docs-removal-instructions` | done | README 'Removing the integration' section. |
 | `docs-triggers` | exempt | The integration provides no triggers. |
 | `entity-event-setup` | todo | Check every platform subscribes in async_added_to_hass via async_on_remove (climate local poller especially). |
 | `entity-unique-id` | done | All entities set unique ids (nature_remo_<platform>_<appliance_id>); unchanged by this branch. |
@@ -36,14 +36,14 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `test-before-setup` | done | Setup checks the token: rejected -> ConfigEntryAuthFailed (reauth), unreachable -> ConfigEntryNotReady. |
 | `unique-config-entry` | done | Nature account id is the entry unique id; old entries are matched by token and adopt the id on next setup. |
 
-## Silver (3 done, 7 todo, 0 exempt)
+## Silver (5 done, 5 todo, 0 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
 | `action-exceptions` | todo | send_light_mode raises ServiceValidationError for bad input; API failures in entity actions still only log. |
 | `config-entry-unloading` | todo | Platforms unload; verify the climate local poller and service are cleaned up on unload. |
-| `docs-configuration-parameters` | todo | Document the options (update interval, Remo IPs, local poll, local IR protocol). |
-| `docs-installation-parameters` | todo | Document the name and access token fields (strings.json already describes them). |
+| `docs-configuration-parameters` | done | README 'Options (Configure)' section. |
+| `docs-installation-parameters` | done | README 'Setup fields' section. |
 | `entity-unavailable` | todo | Lock and remote report availability; climate, light and sensor do not yet. |
 | `integration-owner` | done | codeowners: @nanosns (upstream), @imasaru (fork). |
 | `log-when-unavailable` | todo | Coordinator-based entities get this for free; non-coordinator paths need checking. |
@@ -89,9 +89,8 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
 1. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
 2. Add availability for climate, light and sensor; audit unsubscribe-on-remove (climate local poller).
-3. README: actions, setup fields, options, removal (closes the Bronze/Silver docs rules).
-4. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
-5. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
-6. Platform tests toward 95% coverage; strict mypy.
+3. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
+4. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
+5. Platform tests toward 95% coverage; strict mypy.
 
 Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.

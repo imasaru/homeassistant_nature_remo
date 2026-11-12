@@ -186,6 +186,39 @@ changes and decodes to a valid frame. Limitations:
 
 ---
 
+## Setup fields
+
+| Field | Required | What it is |
+|---|---|---|
+| Name | no | Title of the integration entry (default "Nature Remo"). |
+| Access token | yes | Cloud access token from https://home.nature.global. It is checked before setup finishes; a wrong token shows "The access token was rejected". |
+
+Each Nature account can be added once. If the token is revoked later, Home Assistant shows a **Reconfigure / re-authenticate** prompt: paste a new token for the same account and the integration reloads by itself. You can also change the token any time from the integration's ⋮ menu → **Reconfigure**.
+
+## Options (Configure)
+
+| Option | Default | What it does |
+|---|---|---|
+| Update interval (seconds) | 60 | How often the cloud is polled. Each poll uses 2 requests; Nature allows 30 requests per 5 minutes per token. |
+| *Remo*: IP address | empty | LAN address of a Remo. Needed only for local control. |
+| *Remo*: external temperature / humidity sensor | empty | Use another Home Assistant sensor as the AC's current temperature / humidity. |
+| *Remo*: detect remote presses via local API | off | Polls the Remo's local `/messages` to follow physical remote presses. |
+| *AC*: local IR protocol | none | `fujitsu_arrff2j` sends AC commands over the LAN instead of the cloud. |
+
+## Actions
+
+`nature_remo.send_light_mode` sends a button (`on`, `night`, `bright-up`, ...) to a Nature Remo light and returns `{status, appliance_id}`. It fails with a clear error if the entity is not a Nature Remo light or the mode is not one the light supports.
+
+## Diagnostics
+
+Settings → Devices & services → Nature Remo → ⋮ → **Download diagnostics**. The token, serial numbers, MAC addresses, location and Remo IP addresses are redacted.
+
+## Removing the integration
+
+1. Settings → Devices & services → Nature Remo → ⋮ → **Delete**.
+2. If installed with HACS, remove it in HACS; if installed manually, delete `custom_components/nature_remo`.
+3. Restart Home Assistant. Optionally revoke the access token at https://home.nature.global.
+
 ## Author
 
 - Author: [@nanosns](https://github.com/nanosns) (NaNaRin)
