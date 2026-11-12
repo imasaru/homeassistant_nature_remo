@@ -67,9 +67,9 @@ rules:
     comment: >-
       Not set yet. Safe for entity ids (they live in the registry) but changes friendly names, so do it deliberately.
   runtime-data:
-    status: todo
+    status: done
     comment: >-
-      entry.runtime_data is set and used by diagnostics; platforms and options flow still read hass.data.
+      entry.runtime_data holds the API client and coordinator; hass.data is no longer used.
   test-before-configure:
     status: done
     comment: >-
@@ -122,7 +122,7 @@ rules:
   test-coverage:
     status: todo
     comment: >-
-      Config flow, setup errors and diagnostics are tested; platforms are not (well under 95%).
+      Config flow, setup (incl. full load/unload), the light action and diagnostics are tested; platform entities are not (well under 95%).
   # Gold
   devices:
     status: done

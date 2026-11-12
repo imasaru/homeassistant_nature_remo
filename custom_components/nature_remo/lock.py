@@ -22,9 +22,7 @@ async def async_setup_entry(
     """
     _LOGGER.info("Nature Remo Lock: async_setup_entry called!")
 
-    coordinator: NatureRemoCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
 
     entities = []
     for lock_data in coordinator.locks.values():

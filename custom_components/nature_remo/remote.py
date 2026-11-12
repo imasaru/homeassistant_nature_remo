@@ -27,10 +27,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Nature Remoのリモートエンティティを初期化する. / Set up remote entities for Nature Remo (IR Remotes)."""
-    coordinator: NatureRemoCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
-    api: NatureRemoAPI = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
+    api: NatureRemoAPI = entry.runtime_data.api
 
     entities = [
         NatureRemoRemoteEntity(

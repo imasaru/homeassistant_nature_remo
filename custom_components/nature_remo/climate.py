@@ -86,12 +86,10 @@ async def async_setup_entry(
     Add air conditioner entity from UI configuration.
     """
     _LOGGER.info("Nature Remo Climate: async_setup_entry called!")
-    _LOGGER.debug(f"★[Climate]{hass.data[DOMAIN][entry.entry_id]}")
     _LOGGER.debug(f"config_entry.options: {entry.options}")
 
-    data = hass.data[DOMAIN][entry.entry_id]
-    coordinator: NatureRemoCoordinator = data["coordinator"]
-    api = data["api"]
+    coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
+    api = entry.runtime_data.api
 
     entities = []
     session = async_get_clientsession(hass)

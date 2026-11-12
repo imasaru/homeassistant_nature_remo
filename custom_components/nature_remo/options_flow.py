@@ -143,8 +143,8 @@ class NatureRemoOptionsFlowHandler(config_entries.OptionsFlow):
 
         # [local-api] エアコンごとのローカルIRプロトコル
         # Per AC appliance: local IR protocol used with the Remo local API
-        entry_data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id, {})
-        coordinator = entry_data.get("coordinator")
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        coordinator = getattr(runtime, "coordinator", None)
         aircons = getattr(coordinator, "aircons", {}) if coordinator else {}
         for appliance_id, appliance in aircons.items():
             ac_name = appliance.get("name", appliance_id)

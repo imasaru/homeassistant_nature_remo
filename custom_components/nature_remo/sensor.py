@@ -56,9 +56,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     Called when the integration is initialized.
     Adds sensor entities based on information retrieved from Nature Remo.
     """
-    coordinator: NatureRemoCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
+    coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
     entities = []
 
     # 電気使用量センサー

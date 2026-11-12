@@ -200,3 +200,29 @@ async def test_light_action_registered_once_and_validates(hass: HomeAssistant) -
             blocking=True,
             return_response=True,
         )
+
+
+async def test_setup_and_unload_with_empty_account(hass: HomeAssistant) -> None:
+    """Full setup with no Remo devices: platforms load from runtime_data and unload."""
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_API_KEY: "tok"})
+    entry.add_to_hass(hass)
+    with (
+        patch(SETUP_GET_USER, return_value=USER),
+        patch(
+            "custom_components.nature_remo.api.NatureRemoAPI.get_devices",
+            return_value=[],
+        ),
+        patch(
+            "custom_components.nature_remo.api.NatureRemoAPI.get_appliances",
+            return_value=[],
+        ),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == "user-123"  # legacy entry adopted the account id
+    assert entry.runtime_data.coordinator.last_update_success
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.NOT_LOADED

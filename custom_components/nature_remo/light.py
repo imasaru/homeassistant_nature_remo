@@ -36,10 +36,8 @@ async def async_setup_entry(
     """
     _LOGGER.info("Nature Remo Light: async_setup_entry called!")
 
-    coordinator: NatureRemoCoordinator = hass.data[DOMAIN][entry.entry_id][
-        "coordinator"
-    ]
-    api = hass.data[DOMAIN][entry.entry_id]["api"]
+    coordinator: NatureRemoCoordinator = entry.runtime_data.coordinator
+    api = entry.runtime_data.api
 
     entities = []
     for appliance in coordinator.lights.values():

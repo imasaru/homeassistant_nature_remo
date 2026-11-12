@@ -125,11 +125,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -
     await coordinator.async_config_entry_first_refresh()
 
     entry.runtime_data = NatureRemoRuntimeData(api=api, coordinator=coordinator)
-    # Platforms and the options flow still read hass.data; kept for now.
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        "coordinator": coordinator,
-        "api": api,
-    }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
@@ -137,7 +132,4 @@ async def async_setup_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -
 
 async def async_unload_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    if unload_ok:
-        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    return unload_ok
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

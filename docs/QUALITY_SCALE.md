@@ -6,12 +6,12 @@ The machine-readable version is `custom_components/nature_remo/quality_scale.yam
 
 **Honest tier today: below Bronze.** Every Bronze rule must be done, and these are still open:
 brands, common-modules, docs-actions, docs-removal-instructions, entity-event-setup (audit),
-has-entity-name, runtime-data (platforms still read `hass.data`).
+has-entity-name.
 
 Entity unique ids are unchanged on purpose, so the renamed `bottom_reeme_*` entity ids keep working.
 The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
-## Bronze (11 done, 7 todo, 2 exempt)
+## Bronze (12 done, 6 todo, 2 exempt)
 
 | Rule | Status | Notes |
 |---|---|---|
@@ -31,7 +31,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `entity-event-setup` | todo | Check every platform subscribes in async_added_to_hass via async_on_remove (climate local poller especially). |
 | `entity-unique-id` | done | All entities set unique ids (nature_remo_<platform>_<appliance_id>); unchanged by this branch. |
 | `has-entity-name` | todo | Not set yet. Safe for entity ids (they live in the registry) but changes friendly names, so do it deliberately. |
-| `runtime-data` | todo | entry.runtime_data is set and used by diagnostics; platforms and options flow still read hass.data. |
+| `runtime-data` | done | entry.runtime_data holds the API client and coordinator; hass.data is no longer used. |
 | `test-before-configure` | done | Config flow calls GET /1/users/me before creating the entry. |
 | `test-before-setup` | done | Setup checks the token: rejected -> ConfigEntryAuthFailed (reauth), unreachable -> ConfigEntryNotReady. |
 | `unique-config-entry` | done | Nature account id is the entry unique id; old entries are matched by token and adopt the id on next setup. |
@@ -87,12 +87,11 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
 ## Next steps, in order
 
-1. Switch platforms and the options flow to `entry.runtime_data`, then drop `hass.data`.
-2. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
-3. Add availability for climate, light and sensor; audit unsubscribe-on-remove (climate local poller).
-4. README: actions, setup fields, options, removal (closes the Bronze/Silver docs rules).
-5. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
-6. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
-7. Platform tests toward 95% coverage; strict mypy.
+1. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
+2. Add availability for climate, light and sensor; audit unsubscribe-on-remove (climate local poller).
+3. README: actions, setup fields, options, removal (closes the Bronze/Silver docs rules).
+4. Pass Home Assistant's shared aiohttp session into `NatureRemoAPI` (inject-websession).
+5. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
+6. Platform tests toward 95% coverage; strict mypy.
 
 Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.
