@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
     ConfigEntryNotReady,
@@ -17,6 +17,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util.json import JsonValueType
 
 from .api import (
     NatureRemoAPI,
@@ -49,7 +50,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the integration actions once, not per config entry."""
 
-    async def handle_send_light_mode(call: ServiceCall) -> dict[str, str]:
+    async def handle_send_light_mode(call: ServiceCall) -> dict[str, JsonValueType]:
         """Send a light mode (on, off, night, ...) to a Nature Remo light."""
         entity_id = call.data.get("entity_id")
         mode = call.data.get("mode", "on")
@@ -86,7 +87,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         return {"status": "success", "appliance_id": light_entity._appliance_id}
 
     hass.services.async_register(
-        DOMAIN, "send_light_mode", handle_send_light_mode, supports_response=True
+        DOMAIN,
+        "send_light_mode",
+        handle_send_light_mode,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     return True
 

@@ -2,6 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Any
 
 import aiohttp
 
@@ -38,7 +39,7 @@ class NatureRemoAPI:
         async with aiohttp.ClientSession() as session:
             yield session
 
-    async def _get(self, path: str):
+    async def _get(self, path: str) -> Any:
         """
         Nature RemoのAPI GETリクエスト用の内部メソッド.
         Internal method to perform GET requests to the Nature Remo API.
@@ -57,7 +58,9 @@ class NatureRemoAPI:
             rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
             rate_reset = response.headers.get("X-Rate-Limit-Reset")
             # rate_resetを読める時間に変換する
-            reset_time = datetime.fromtimestamp(int(rate_reset))
+            reset_time = (
+                datetime.fromtimestamp(int(rate_reset)) if rate_reset is not None else None
+            )
 
             # デバッグログにリクエスト情報を出力する
             _LOGGER.debug(
@@ -70,21 +73,21 @@ class NatureRemoAPI:
             _LOGGER.error("Failed to fetch request: %s", response.status)
             return None
 
-    async def get_appliances(self):
+    async def get_appliances(self) -> Any:
         """
         Nature Remo API からすべての家電情報を取得.
         Fetch all appliance information from the Nature Remo API.
         """
         return await self._get("/appliances")
 
-    async def get_devices(self):
+    async def get_devices(self) -> Any:
         """
         Nature Remoのデバイス一覧を取得（温湿度センサー含む）.
         Retrieve the list of devices from Nature Remo, including temperature and humidity sensors.
         """
         return await self._get("/devices")
 
-    async def send_command_climate(self, payload, appliance_id):
+    async def send_command_climate(self, payload: dict[str, Any], appliance_id: str) -> Any:
         """
         Nature Remo APIを使ってエアコンを操作.
         Control the air conditioner using the Nature Remo API.
@@ -100,8 +103,9 @@ class NatureRemoAPI:
             # レート制限系のヘッダを取得・ログ出力
             rate_limit = response.headers.get("X-Rate-Limit-Limit")
             rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
-            rate_reset = datetime.fromtimestamp(
-                int(response.headers.get("X-Rate-Limit-Reset"))
+            rate_reset_hdr = response.headers.get("X-Rate-Limit-Reset")
+            rate_reset = (
+                datetime.fromtimestamp(int(rate_reset_hdr)) if rate_reset_hdr is not None else None
             )
 
             # デバッグログにリクエスト情報を出力
@@ -122,7 +126,7 @@ class NatureRemoAPI:
                 )
             return response_json
 
-    async def send_light_command(self, appliance_id: str, command: str):
+    async def send_light_command(self, appliance_id: str, command: str) -> Any:
         """
         Nature Remo LightのON/OFFを送信.
         Send ON/OFF commands to Nature Remo Light.
@@ -140,8 +144,9 @@ class NatureRemoAPI:
             # レート制限系のヘッダを取得・ログ出力！
             rate_limit = response.headers.get("X-Rate-Limit-Limit")
             rate_remaining = response.headers.get("X-Rate-Limit-Remaining")
-            rate_reset = datetime.fromtimestamp(
-                int(response.headers.get("X-Rate-Limit-Reset"))
+            rate_reset_hdr = response.headers.get("X-Rate-Limit-Reset")
+            rate_reset = (
+                datetime.fromtimestamp(int(rate_reset_hdr)) if rate_reset_hdr is not None else None
             )
 
             # デバッグログにリクエスト情報を出力
@@ -159,7 +164,9 @@ class NatureRemoAPI:
                 )
             return response_json
 
-    def parse_smart_meter_properties(self, properties: list[dict]) -> dict:
+    def parse_smart_meter_properties(
+        self, properties: list[dict[str, Any]]
+    ) -> dict[str, float]:
         """
         Nature Remo E / E Liteのechonetlite_propertiesを元に買電・売電・瞬時電力をパースして返却する.
         Parse echonetlite_properties from Nature Remo E / E Lite to extract buy/sell power and instantaneous power.
@@ -172,7 +179,7 @@ class NatureRemoAPI:
         instant_power = 0
 
         for prop in properties:
-            epc = int(prop.get("epc"))
+            epc = int(prop.get("epc") or 0)
             val_str = prop.get("val", "0")
             try:
                 val = int(val_str)
@@ -242,7 +249,7 @@ class NatureRemoConnectionError(Exception):
     """The Nature Remo cloud could not be reached."""
 
 
-async def async_get_user(session: aiohttp.ClientSession, token: str) -> dict:
+async def async_get_user(session: aiohttp.ClientSession, token: str) -> dict[str, Any]:
     """Return the Nature account for ``token`` (GET /1/users/me).
 
     Used by the config flow and setup to test the token before anything else.

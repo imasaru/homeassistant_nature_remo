@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 import aiohttp
 
@@ -39,7 +40,7 @@ class NatureRemoLocalAPI:
         self.host = host
         self._timeout = aiohttp.ClientTimeout(total=timeout)
 
-    async def send_signal(self, signal: dict) -> None:
+    async def send_signal(self, signal: dict[str, Any]) -> None:
         """POST a raw IR signal. Raises NatureRemoLocalError on any failure."""
         try:
             async with self._session.post(
@@ -51,7 +52,7 @@ class NatureRemoLocalAPI:
         except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             raise NatureRemoLocalError(f"{type(err).__name__}: {err}") from err
 
-    async def get_last_signal(self) -> dict | None:
+    async def get_last_signal(self) -> dict[str, Any] | None:
         """GET the last received IR signal (None when empty)."""
         try:
             async with self._session.get(
@@ -61,6 +62,7 @@ class NatureRemoLocalAPI:
                     return None
                 if resp.status // 100 != 2:
                     raise NatureRemoLocalError(f"HTTP {resp.status}")
-                return await resp.json(content_type=None)
+                data = await resp.json(content_type=None)
+                return data if isinstance(data, dict) else None
         except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
             raise NatureRemoLocalError(f"{type(err).__name__}: {err}") from err

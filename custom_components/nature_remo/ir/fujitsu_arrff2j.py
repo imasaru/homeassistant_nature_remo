@@ -19,6 +19,8 @@ Short "util" frames (5 bytes): OFF = 00 08 08 40 BF, high power toggle = 00 08 0
 """
 from __future__ import annotations
 
+from typing import Any
+
 from dataclasses import dataclass, field
 
 PROTOCOL = "fujitsu_arrff2j"
@@ -148,7 +150,7 @@ def encode_state(state: FujitsuState) -> list[int]:
     return msg
 
 
-def to_remo_signal(payload: list[int]) -> dict:
+def to_remo_signal(payload: list[int]) -> dict[str, Any]:
     """AEHA payload -> Nature Remo local API IRSignal (MSB-first, as ESPHome)."""
     data = [HEADER_MARK, HEADER_SPACE]
     bits = [(ADDRESS >> (15 - i)) & 1 for i in range(16)]
@@ -160,7 +162,7 @@ def to_remo_signal(payload: list[int]) -> dict:
     return {"format": "us", "freq": CARRIER_KHZ, "data": data}
 
 
-def build_signal(state: FujitsuState) -> dict:
+def build_signal(state: FujitsuState) -> dict[str, Any]:
     return to_remo_signal(encode_state(state))
 
 
@@ -226,7 +228,7 @@ def decode_payload(payload: list[int]) -> FujitsuState | None:
                         raw=list(payload))
 
 
-def decode_remo_signal(signal: dict) -> FujitsuState | None:
+def decode_remo_signal(signal: dict[str, Any]) -> FujitsuState | None:
     """Decode a Remo IRSignal ({"format","freq","data"}) into a FujitsuState.
 
     Returns None if no valid AR-RFF2J frame is found. Real captures have timing

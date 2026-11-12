@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from datetime import timedelta, datetime
 import logging
+from typing import Any
 
 from aiohttp import ClientError
 
@@ -7,17 +10,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components.light import LightEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .api import NatureRemoAPI
+
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class NatureRemoCoordinator(DataUpdateCoordinator):
+class NatureRemoCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """
     Nature Remo API からデータを取得するコーディネーター.
     Coordinator to fetch data from the Nature Remo API.
     """
 
-    def __init__(self, hass: HomeAssistant, api, update_interval: int = 60) -> None:
+    def __init__(self, hass: HomeAssistant, api: NatureRemoAPI, update_interval: int = 60) -> None:
         """初期化."""
         super().__init__(
             hass,
@@ -26,21 +31,21 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=update_interval),
         )
         self.api = api
-        self.devices = {}
-        self.aircons = {}
-        self.lights = {}
-        self.ir_remotes = {}
-        self.smart_meters = {}
-        self.motion_sensors = {}  # motionセンサー用の辞書
+        self.devices: dict[str, dict[str, Any]] = {}
+        self.aircons: dict[str, dict[str, Any]] = {}
+        self.lights: dict[str, dict[str, Any]] = {}
+        self.ir_remotes: dict[str, dict[str, Any]] = {}
+        self.smart_meters: dict[str, dict[str, Any]] = {}
+        self.motion_sensors: dict[str, dict[str, Any]] = {}
         self.entity_map: dict[str, LightEntity] = {}
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """APIを1回だけ呼び、各アプライアンスの情報を取得."""
         _LOGGER.info("NatureRemoCoordinator.async_update_data start.")
         try:
             # Remoデバイス本体（温湿度センサーなど）の処理
             self.devices = {}
-            devices = await self.api.get_devices()
+            devices = await self.api.get_devices() or []
             for device in devices:
                 device_id = device.get("id")
                 name = device.get("name", "Unnamed")
@@ -76,7 +81,7 @@ class NatureRemoCoordinator(DataUpdateCoordinator):
             self.smart_meters = {}
             self.ir_remotes = {}
 
-            appliances = await self.api.get_appliances()
+            appliances = await self.api.get_appliances() or []
 
             for appliance in appliances:
                 appliance_type = appliance.get("type")
