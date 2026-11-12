@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Nature Remo",
+        "description": "Create an access token at https://home.nature.global and paste it below. Local control (Remo IP addresses, Fujitsu IR) can be turned on later under Configure.",
+        "data": {
+          "name": "Name",
+          "api_key": "Access token"
+        },
+        "data_description": {
+          "name": "Shown as the title of this integration entry.",
+          "api_key": "The Nature Remo cloud access token. It is checked before setup finishes."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nature Remo token rejected",
+        "description": "The access token for {name} no longer works. Create a new one at https://home.nature.global and paste it below.",
+        "data": {
+          "api_key": "Access token"
+        },
+        "data_description": {
+          "api_key": "A new Nature Remo cloud access token for the same account."
+        }
+      },
+      "reconfigure": {
+        "title": "Change Nature Remo token",
+        "description": "Replace the access token used by {name}.",
+        "data": {
+          "api_key": "Access token"
+        },
+        "data_description": {
+          "api_key": "A Nature Remo cloud access token for the same account."
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "The access token was rejected. Check that it was copied completely.",
+      "cannot_connect": "Could not reach the Nature Remo cloud. Try again in a moment.",
+      "unknown": "Unexpected error. See the Home Assistant log."
+    },
+    "abort": {
+      "already_configured": "This Nature account is already set up.",
+      "reauth_successful": "The token was updated.",
+      "reconfigure_successful": "The token was updated.",
+      "wrong_account": "That token belongs to a different Nature account."
+    }
+  },
+  "exceptions": {
+    "invalid_auth": {
+      "message": "The Nature Remo access token was rejected."
+    },
+    "cannot_connect": {
+      "message": "Could not reach the Nature Remo cloud."
+    },
+    "entity_not_found": {
+      "message": "{entity_id} is not a Nature Remo light."
+    },
+    "unsupported_mode": {
+      "message": "The light does not support the mode {mode}."
+    }
+  }
+}

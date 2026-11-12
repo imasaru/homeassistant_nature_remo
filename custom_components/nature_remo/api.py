@@ -214,3 +214,37 @@ class NatureRemoAPI:
                     text = await response.text()
                     _LOGGER.error("Failed to send signal %s: %s", signal_id, text)
                     response.raise_for_status()
+
+
+class NatureRemoAuthError(Exception):
+    """The Nature Remo cloud rejected the access token."""
+
+
+class NatureRemoConnectionError(Exception):
+    """The Nature Remo cloud could not be reached."""
+
+
+async def async_get_user(session: aiohttp.ClientSession, token: str) -> dict:
+    """Return the Nature account for ``token`` (GET /1/users/me).
+
+    Used by the config flow and setup to test the token before anything else.
+    Raises NatureRemoAuthError for a rejected token and NatureRemoConnectionError
+    for network problems or unexpected replies.
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        async with session.get(
+            f"{NATURE_REMO_URL}/users/me",
+            headers=headers,
+            timeout=aiohttp.ClientTimeout(total=15),
+        ) as response:
+            if response.status in (401, 403):
+                raise NatureRemoAuthError
+            if response.status != 200:
+                raise NatureRemoConnectionError(f"HTTP {response.status}")
+            data = await response.json()
+    except (aiohttp.ClientError, TimeoutError) as err:
+        raise NatureRemoConnectionError(str(err)) from err
+    if not isinstance(data, dict):
+        raise NatureRemoConnectionError("unexpected reply")
+    return data

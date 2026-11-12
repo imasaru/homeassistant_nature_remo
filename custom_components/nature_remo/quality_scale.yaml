@@ -1,0 +1,207 @@
+# Integration Quality Scale status for this fork (custom integration).
+# Rule list: https://developers.home-assistant.io/docs/core/integration-quality-scale/rules (54 rules, fetched 2026-11-13)
+rules:
+  # Bronze
+  action-setup:
+    status: todo
+    comment: >-
+      send_light_mode is still registered in async_setup_entry; move it to async_setup.
+  appropriate-polling:
+    status: done
+    comment: >-
+      60 s default (2 cloud calls per poll, within Nature's 30 requests / 5 min), user-adjustable in options.
+  brands:
+    status: todo
+    comment: >-
+      No logo/icon in home-assistant/brands custom_integrations yet.
+  common-modules:
+    status: todo
+    comment: >-
+      coordinator.py exists; a shared entity.py base class does not.
+  config-flow:
+    status: done
+    comment: >-
+      UI setup with token check, data_description, token in data and settings in options.
+  config-flow-test-coverage:
+    status: done
+    comment: >-
+      tests/test_config_flow.py: success, each error with recovery, duplicates, reauth, reconfigure.
+  dependency-transparency:
+    status: done
+    comment: >-
+      Only aiohttp, which Home Assistant ships.
+  docs-actions:
+    status: todo
+    comment: >-
+      Document the send_light_mode action in the README.
+  docs-conditions:
+    status: exempt
+    comment: >-
+      The integration provides no conditions.
+  docs-high-level-description:
+    status: done
+    comment: >-
+      README describes Nature Remo and what the integration controls.
+  docs-installation-instructions:
+    status: done
+    comment: >-
+      README has HACS and manual install steps.
+  docs-removal-instructions:
+    status: todo
+    comment: >-
+      README needs a removal section.
+  docs-triggers:
+    status: exempt
+    comment: >-
+      The integration provides no triggers.
+  entity-event-setup:
+    status: todo
+    comment: >-
+      Check every platform subscribes in async_added_to_hass via async_on_remove (climate local poller especially).
+  entity-unique-id:
+    status: done
+    comment: >-
+      All entities set unique ids (nature_remo_<platform>_<appliance_id>); unchanged by this branch.
+  has-entity-name:
+    status: todo
+    comment: >-
+      Not set yet. Safe for entity ids (they live in the registry) but changes friendly names, so do it deliberately.
+  runtime-data:
+    status: todo
+    comment: >-
+      entry.runtime_data is set and used by diagnostics; platforms and options flow still read hass.data.
+  test-before-configure:
+    status: done
+    comment: >-
+      Config flow calls GET /1/users/me before creating the entry.
+  test-before-setup:
+    status: done
+    comment: >-
+      Setup checks the token: rejected -> ConfigEntryAuthFailed (reauth), unreachable -> ConfigEntryNotReady.
+  unique-config-entry:
+    status: done
+    comment: >-
+      Nature account id is the entry unique id; old entries are matched by token and adopt the id on next setup.
+  # Silver
+  action-exceptions:
+    status: todo
+    comment: >-
+      send_light_mode raises ServiceValidationError for bad input; API failures in entity actions still only log.
+  config-entry-unloading:
+    status: todo
+    comment: >-
+      Platforms unload; verify the climate local poller and service are cleaned up on unload.
+  docs-configuration-parameters:
+    status: todo
+    comment: >-
+      Document the options (update interval, Remo IPs, local poll, local IR protocol).
+  docs-installation-parameters:
+    status: todo
+    comment: >-
+      Document the name and access token fields (strings.json already describes them).
+  entity-unavailable:
+    status: todo
+    comment: >-
+      Lock and remote report availability; climate, light and sensor do not yet.
+  integration-owner:
+    status: done
+    comment: >-
+      codeowners: @nanosns (upstream), @imasaru (fork).
+  log-when-unavailable:
+    status: todo
+    comment: >-
+      Coordinator-based entities get this for free; non-coordinator paths need checking.
+  parallel-updates:
+    status: todo
+    comment: >-
+      Add PARALLEL_UPDATES to each platform.
+  reauthentication-flow:
+    status: done
+    comment: >-
+      reauth_confirm step, refuses a token from a different account.
+  test-coverage:
+    status: todo
+    comment: >-
+      Config flow, setup errors and diagnostics are tested; platforms are not (well under 95%).
+  # Gold
+  devices:
+    status: done
+    comment: >-
+      Entities attach to Remo / appliance devices via device_info.
+  diagnostics:
+    status: done
+    comment: >-
+      diagnostics.py, token, serials, MACs, location and Remo IPs redacted.
+  discovery:
+    status: todo
+    comment: >-
+      Remo devices are believed to advertise over mDNS (_remo._tcp); confirm on the LAN, then add zeroconf to fill in local IPs.
+  discovery-update-info:
+    status: todo
+    comment: >-
+      Depends on discovery; would update a Remo's local IP when it changes.
+  docs-data-update:
+    status: todo
+  docs-examples:
+    status: todo
+  docs-known-limitations:
+    status: todo
+    comment: >-
+      e.g. cloud rate limit, local IR only for Fujitsu AR-RFF2J.
+  docs-supported-devices:
+    status: todo
+  docs-supported-functions:
+    status: todo
+  docs-troubleshooting:
+    status: todo
+  docs-use-cases:
+    status: todo
+  dynamic-devices:
+    status: todo
+    comment: >-
+      New appliances need a reload today.
+  entity-category:
+    status: todo
+  entity-device-class:
+    status: todo
+    comment: >-
+      Sensors mostly have device classes; audit the rest.
+  entity-disabled-by-default:
+    status: todo
+  entity-translations:
+    status: todo
+    comment: >-
+      Needs has-entity-name first.
+  exception-translations:
+    status: todo
+    comment: >-
+      Setup and the light action use translated errors; entity actions do not.
+  icon-translations:
+    status: todo
+    comment: >-
+      No icons.json yet.
+  reconfiguration-flow:
+    status: done
+    comment: >-
+      reconfigure step replaces the token in place.
+  repair-issues:
+    status: todo
+    comment: >-
+      Candidate: warn when the cloud rate limit is hit repeatedly.
+  stale-devices:
+    status: todo
+    comment: >-
+      Implement async_remove_config_entry_device or prune removed appliances.
+  # Platinum
+  async-dependency:
+    status: done
+    comment: >-
+      The client is in-tree and fully asyncio (aiohttp).
+  inject-websession:
+    status: todo
+    comment: >-
+      Token check uses Home Assistant's shared session; NatureRemoAPI still opens its own session per request.
+  strict-typing:
+    status: todo
+    comment: >-
+      New modules are typed; climate/light/sensor/remote/lock are not, and no strict mypy run yet.

@@ -1,0 +1,63 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nature Remo に接続",
+        "description": "https://home.nature.global でアクセストークンを発行し、下に貼り付けてください。ローカル操作（Remo の IP アドレス、富士通エアコンの IR）は後から「設定」で有効にできます。",
+        "data": {
+          "name": "名前",
+          "api_key": "アクセストークン"
+        },
+        "data_description": {
+          "name": "この連携の表示名です。",
+          "api_key": "Nature Remo クラウドのアクセストークン。セットアップ前に確認します。"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nature Remo のトークンが無効です",
+        "description": "{name} のアクセストークンが使えなくなりました。https://home.nature.global で新しいトークンを発行して貼り付けてください。",
+        "data": {
+          "api_key": "アクセストークン"
+        },
+        "data_description": {
+          "api_key": "同じアカウントの新しいアクセストークン。"
+        }
+      },
+      "reconfigure": {
+        "title": "Nature Remo のトークンを変更",
+        "description": "{name} で使うアクセストークンを変更します。",
+        "data": {
+          "api_key": "アクセストークン"
+        },
+        "data_description": {
+          "api_key": "同じアカウントのアクセストークン。"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "アクセストークンが拒否されました。全部コピーできているか確認してください。",
+      "cannot_connect": "Nature Remo クラウドに接続できません。しばらくしてから再試行してください。",
+      "unknown": "予期しないエラーです。ログを確認してください。"
+    },
+    "abort": {
+      "already_configured": "この Nature アカウントは既に設定されています。",
+      "reauth_successful": "トークンを更新しました。",
+      "reconfigure_successful": "トークンを更新しました。",
+      "wrong_account": "このトークンは別の Nature アカウントのものです。"
+    }
+  },
+  "exceptions": {
+    "invalid_auth": {
+      "message": "Nature Remo のアクセストークンが拒否されました。"
+    },
+    "cannot_connect": {
+      "message": "Nature Remo クラウドに接続できません。"
+    },
+    "entity_not_found": {
+      "message": "{entity_id} は Nature Remo のライトではありません。"
+    },
+    "unsupported_mode": {
+      "message": "このライトはモード {mode} に対応していません。"
+    }
+  }
+}
