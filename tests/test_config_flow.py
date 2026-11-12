@@ -226,3 +226,28 @@ async def test_setup_and_unload_with_empty_account(hass: HomeAssistant) -> None:
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_setup_removes_retired_lock_entities(hass: HomeAssistant) -> None:
+    """Old read-only Qrio lock entities are dropped from the registry on setup."""
+    from homeassistant.helpers import entity_registry as er
+
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_API_KEY: "tok"})
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    lock = registry.async_get_or_create(
+        "lock", DOMAIN, "nature_remo_lock_abc", config_entry=entry,
+        suggested_object_id="bottom_reeme_front_door",
+    )
+    keep = registry.async_get_or_create(
+        "sensor", DOMAIN, "nature_remo_sensor_keep", config_entry=entry,
+    )
+    with (
+        patch(SETUP_GET_USER, return_value=USER),
+        patch("custom_components.nature_remo.api.NatureRemoAPI.get_devices", return_value=[]),
+        patch("custom_components.nature_remo.api.NatureRemoAPI.get_appliances", return_value=[]),
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+    assert registry.async_get(lock.entity_id) is None
+    assert registry.async_get(keep.entity_id) is not None

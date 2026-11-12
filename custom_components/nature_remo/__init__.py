@@ -14,6 +14,7 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
@@ -27,7 +28,7 @@ from .const import DEFAULT_UPDATE_INTERVAL, DOMAIN
 from .coordinator import NatureRemoCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate", "light", "sensor", "remote", "lock", "switch"]
+PLATFORMS = ["climate", "light", "sensor", "remote", "switch"]
 
 
 @dataclass
@@ -121,6 +122,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -
         if not taken:
             hass.config_entries.async_update_entry(entry, unique_id=user_id)
 
+    _async_remove_orphaned_lock_entities(hass, entry)
+
     api = NatureRemoAPI(token, async_get_clientsession(hass))
     update_interval = entry.options.get("update_interval", DEFAULT_UPDATE_INTERVAL)
     coordinator = NatureRemoCoordinator(hass, api, update_interval)
@@ -130,6 +133,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+def _async_remove_orphaned_lock_entities(
+    hass: HomeAssistant, entry: NatureRemoConfigEntry
+) -> None:
+    """Remove lock entities left from the old read-only Qrio lock platform.
+
+    The lock platform was removed in 0.4.0 (the Nature Remo API cannot report
+    or control a Qrio lock), so its registry entries would stay orphaned.
+    """
+    registry = er.async_get(hass)
+    for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if reg_entry.domain == "lock" and reg_entry.platform == DOMAIN:
+            _LOGGER.info("Removing retired Nature Remo lock entity %s", reg_entry.entity_id)
+            registry.async_remove(reg_entry.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: NatureRemoConfigEntry) -> bool:

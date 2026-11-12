@@ -43,7 +43,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 | `config-entry-unloading` | done | Platforms unload; climate local poller cancelled on unload; tested. |
 | `docs-configuration-parameters` | done | README 'Options (Configure)' section. |
 | `docs-installation-parameters` | done | README 'Setup fields' section. |
-| `entity-unavailable` | todo | Lock and remote report availability; climate, light and sensor do not yet. |
+| `entity-unavailable` | todo | Remote reports availability; climate, light and sensor do not yet. |
 | `integration-owner` | done | codeowners: @nanosns (upstream), @imasaru (fork). |
 | `log-when-unavailable` | todo | Coordinator-based entities get this for free; non-coordinator paths need checking. |
 | `parallel-updates` | done | 1 on command platforms, 0 on sensor. |
@@ -82,7 +82,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 |---|---|---|
 | `async-dependency` | done | The client is in-tree and fully asyncio (aiohttp). |
 | `inject-websession` | done | NatureRemoAPI takes Home Assistant's shared aiohttp session. |
-| `strict-typing` | todo | New modules are typed; climate/light/sensor/remote/lock are not, and no strict mypy run yet. |
+| `strict-typing` | todo | New modules are typed; climate/light/sensor/remote/switch are not, and no strict mypy run yet. |
 
 ## Next steps, in order
 
@@ -94,3 +94,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 4. Platform tests toward 95% coverage; strict mypy.
 
 Note: the お知らせ (notification) toggle lives in switch.py on the main / feat/oshirase-toggle branches and in the live copy, not on local-api. This branch starts from local-api, so it does not include that switch yet; merge it in before deploying.
+
+## Removed: Qrio lock platform (2026-11-13)
+
+The Phase 1 read-only lock entity for the Qrio Lock (Q-SL2) was removed: the Nature Remo API does not report or control the lock, so it was only a placeholder. `lock.py`, its `PLATFORMS` entry and the coordinator's lock parsing are gone. On the first setup after upgrading, any leftover `lock.*` entities of this integration are deleted from the entity registry (a partial step toward `stale-devices`). **When deployed, the existing `lock.bottom_reeme_*` entity disappears**; remove it from dashboards and automations first.

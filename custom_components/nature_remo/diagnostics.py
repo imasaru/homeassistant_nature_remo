@@ -52,7 +52,6 @@ async def async_get_config_entry_diagnostics(
             "devices": getattr(coordinator, "devices", {}),
             "aircons": getattr(coordinator, "aircons", {}),
             "lights": getattr(coordinator, "lights", {}),
-            "locks": getattr(coordinator, "locks", {}),
             "ir_remotes": getattr(coordinator, "ir_remotes", {}),
             "smart_meters": getattr(coordinator, "smart_meters", {}),
         }

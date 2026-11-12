@@ -57,7 +57,7 @@ rules:
   entity-event-setup:
     status: done
     comment: >-
-      Listeners use async_on_remove (climate, light, lock) or CoordinatorEntity (sensor, remote); the light action map is cleared on removal.
+      Listeners use async_on_remove (climate, light) or CoordinatorEntity (sensor, remote); the light action map is cleared on removal.
   entity-unique-id:
     status: done
     comment: >-
@@ -102,7 +102,7 @@ rules:
   entity-unavailable:
     status: todo
     comment: >-
-      Lock and remote report availability; climate, light and sensor do not yet.
+      Remote reports availability; climate, light and sensor do not yet.
   integration-owner:
     status: done
     comment: >-
@@ -114,7 +114,7 @@ rules:
   parallel-updates:
     status: done
     comment: >-
-      PARALLEL_UPDATES = 1 on command platforms (climate, light, remote, lock), 0 on sensor.
+      PARALLEL_UPDATES = 1 on command platforms (climate, light, remote), 0 on switch and, 0 on sensor.
   reauthentication-flow:
     status: done
     comment: >-
@@ -190,6 +190,7 @@ rules:
       Candidate: warn when the cloud rate limit is hit repeatedly.
   stale-devices:
     status: todo
+    # partial: retired lock entities are removed from the entity registry on setup.
     comment: >-
       Implement async_remove_config_entry_device or prune removed appliances.
   # Platinum
@@ -204,4 +205,4 @@ rules:
   strict-typing:
     status: todo
     comment: >-
-      New modules are typed; climate/light/sensor/remote/lock are not, and no strict mypy run yet.
+      New modules are typed; climate/light/sensor/remote/switch are not, and no strict mypy run yet.

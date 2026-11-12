@@ -219,6 +219,10 @@ Settings → Devices & services → Nature Remo → ⋮ → **Download diagnosti
 2. If installed with HACS, remove it in HACS; if installed manually, delete `custom_components/nature_remo`.
 3. Restart Home Assistant. Optionally revoke the access token at https://home.nature.global.
 
+## Removed in 0.4.0: Qrio lock
+
+The read-only Qrio Lock entity was removed because the Nature Remo API cannot report or control the lock. Leftover lock entities are deleted automatically on the next start.
+
 ## Author
 
 - Author: [@nanosns](https://github.com/nanosns) (NaNaRin)
