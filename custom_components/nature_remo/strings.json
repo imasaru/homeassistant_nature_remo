@@ -32,6 +32,16 @@
         "data_description": {
           "api_key": "A Nature Remo cloud access token for the same account."
         }
+      },
+      "zeroconf_confirm": {
+        "title": "Nature Remo found",
+        "description": "A Nature Remo ({name}) was found at {host}. Enter an access token from https://home.nature.global to set it up. If this Remo already belongs to an account in Home Assistant, its stored local IP is updated automatically.",
+        "data": {
+          "api_key": "Access token"
+        },
+        "data_description": {
+          "api_key": "The Nature Remo cloud access token. It is checked before setup finishes."
+        }
       }
     },
     "error": {

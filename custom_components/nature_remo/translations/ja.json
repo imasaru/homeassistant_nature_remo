@@ -32,6 +32,16 @@
         "data_description": {
           "api_key": "同じアカウントのアクセストークン。"
         }
+      },
+      "zeroconf_confirm": {
+        "title": "Nature Remo が見つかりました",
+        "description": "Nature Remo（{name}）が {host} で見つかりました。https://home.nature.global で発行したアクセストークンを入力してください。既に Home Assistant に登録されている Remo なら、保存済みのローカル IP は自動で更新されます。",
+        "data": {
+          "api_key": "アクセストークン"
+        },
+        "data_description": {
+          "api_key": "Nature Remo クラウドのアクセストークン。セットアップ前に確認します。"
+        }
       }
     },
     "error": {

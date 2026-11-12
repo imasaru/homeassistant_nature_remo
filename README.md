@@ -62,6 +62,9 @@ Click the button below to easily add this repository to HACS.
    - You can issue an API token at [Nature Official Site](https://home.nature.global)
 3. Your registered appliances will be automatically imported as entities
 
+Nature Remo devices that advertise over mDNS (`_remo._tcp`) also show up as a discovered integration. For a new account you confirm setup with the same access token. If the Remo already belongs to a configured account, its stored local IP (the per-device Options field used by the local API) is updated automatically.
+
+
 ---
 
 ## Options

@@ -56,8 +56,8 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 |---|---|---|
 | `devices` | done | Entities attach to Remo / appliance devices via device_info. |
 | `diagnostics` | done | diagnostics.py, token, serials, MACs, location and Remo IPs redacted. |
-| `discovery` | todo | Remo devices are believed to advertise over mDNS (_remo._tcp); confirm on the LAN, then add zeroconf to fill in local IPs. |
-| `discovery-update-info` | todo | Depends on discovery; would update a Remo's local IP when it changes. |
+| `discovery` | done | Zeroconf (`_remo._tcp.local.`). A 2026-11-13 LAN browse on 192.168.11.0/24 saw no advertisements; public docs confirm the type and Remo-XXXXXX instance names. |
+| `discovery-update-info` | done | Updates the stored local IP of a known Remo (matched by IP, serial, MAC or name). |
 | `docs-data-update` | todo |  |
 | `docs-examples` | todo |  |
 | `docs-known-limitations` | todo | e.g. cloud rate limit, local IR only for Fujitsu AR-RFF2J. |
@@ -90,7 +90,7 @@ The Fujitsu AR-RFF2J encoder and local API code are untouched.
 
 1. Add `entity.py` with a shared base entity; set `_attr_has_entity_name = True` with translated names (friendly names change, entity ids do not).
 2. Add availability for climate, light and sensor (entity-unavailable).
-3. Confirm Remo mDNS (`_remo._tcp`) on the LAN and add zeroconf discovery to fill in local IPs.
+3. Zeroconf discovery (`_remo._tcp`) is in place; no Remo was advertising on the 192.168.11.0/24 LAN on 2026-11-13.
 4. Platform tests toward 95% coverage; strict mypy.
 
 Note: main (the お知らせ toggle in switch.py and the Fujitsu footer fixes, identical to the live copy) is merged into this branch, so the toggle and encoder behave exactly as live.

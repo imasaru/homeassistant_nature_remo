@@ -14,5 +14,8 @@
   "requirements": [
     "aiohttp"
   ],
-  "version": "0.4.0"
+  "version": "0.4.0",
+  "zeroconf": [
+    "_remo._tcp.local."
+  ]
 }

@@ -5,19 +5,29 @@ The token is checked against the Nature Remo cloud before an entry is created,
 and the Nature account id is used as the entry's unique id so the same account
 cannot be added twice.  Re-authentication and reconfiguration let the user
 replace the token without removing the integration.
+
+Zeroconf (_remo._tcp) discovery updates the stored local IP of a known Remo,
+or starts a confirm step that asks for the token to add a new account.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Protocol
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigEntryState,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_API_KEY, CONF_NAME
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import async_get as async_get_device_registry
 from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
@@ -30,6 +40,13 @@ from .options_flow import NatureRemoOptionsFlowHandler
 
 _LOGGER = logging.getLogger(__name__)
 
+# TXT keys seen in docs or reserved for future firmware. None were observed
+# on the LAN (no Remo advertised during the 2026-11-13 browse).
+_PROPERTY_ID_KEYS = frozenset(
+    {"id", "serial", "serial_number", "mac", "mac_address", "bt_mac_address"}
+)
+_HEX_ONLY = re.compile(r"[^0-9a-f]")
+
 TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
 USER_SCHEMA = vol.Schema(
@@ -41,10 +58,135 @@ USER_SCHEMA = vol.Schema(
 TOKEN_SCHEMA = vol.Schema({vol.Required(CONF_API_KEY): TOKEN_SELECTOR})
 
 
+class _ZeroconfServiceInfo(Protocol):
+    """The subset of Home Assistant's ZeroconfServiceInfo used by this flow."""
+
+    host: str
+    hostname: str
+    name: str
+    properties: Mapping[str, Any]
+    ip_address: object
+
+
+def _norm(value: str) -> str:
+    return value.strip().rstrip(".").lower()
+
+
+def _mac_forms(value: str) -> set[str]:
+    """Return common string forms of a MAC or serial suffix."""
+    raw = _norm(value).replace("-", ":")
+    hex_only = _HEX_ONLY.sub("", raw)
+    forms = {raw, hex_only}
+    if len(hex_only) == 12:
+        forms.add(":".join(hex_only[i : i + 2] for i in range(0, 12, 2)))
+    if len(hex_only) >= 6:
+        forms.add(hex_only[-6:])
+    return {item for item in forms if item}
+
+
+def _property_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        try:
+            value = value.decode()
+        except UnicodeDecodeError:
+            return None
+    text = str(value).strip()
+    return text or None
+
+
+def _zeroconf_host(discovery_info: _ZeroconfServiceInfo) -> str:
+    host = getattr(discovery_info, "host", None)
+    if host:
+        return str(host)
+    return str(discovery_info.ip_address)
+
+
+def _zeroconf_instance_name(discovery_info: _ZeroconfServiceInfo) -> str:
+    name = discovery_info.name or ""
+    instance = name.split(".")[0] if name else ""
+    if instance:
+        return instance
+    hostname = (discovery_info.hostname or "").rstrip(".")
+    if hostname.lower().endswith(".local"):
+        hostname = hostname[: -len(".local")].rstrip(".")
+    return hostname
+
+
+def _discovery_identifiers(
+    discovery_info: _ZeroconfServiceInfo, host: str
+) -> set[str]:
+    """Serial, MAC, hostname and IP forms that can match a stored Remo."""
+    identifiers: set[str] = set()
+    if host:
+        identifiers.add(_norm(host))
+    hostname = _norm(discovery_info.hostname or "")
+    if hostname:
+        identifiers.add(hostname)
+        if hostname.endswith(".local"):
+            identifiers.add(hostname[: -len(".local")].rstrip("."))
+    instance = _zeroconf_instance_name(discovery_info)
+    if instance:
+        identifiers.add(_norm(instance))
+        if "-" in instance:
+            identifiers.update(_mac_forms(instance.split("-", 1)[1]))
+    for key, value in (discovery_info.properties or {}).items():
+        key_text = key.decode() if isinstance(key, bytes) else str(key)
+        if key_text.lower() not in _PROPERTY_ID_KEYS:
+            continue
+        text = _property_text(value)
+        if text is None:
+            continue
+        identifiers.add(_norm(text))
+        identifiers.update(_mac_forms(text))
+    return {item for item in identifiers if item}
+
+
+def _device_identifiers(device: Any) -> set[str]:
+    identifiers: set[str] = set()
+    for raw in (device.serial_number, device.name, device.name_by_user):
+        if raw:
+            identifiers.add(_norm(str(raw)))
+            identifiers.update(_mac_forms(str(raw)))
+    for _conn_type, conn_id in device.connections:
+        identifiers.add(_norm(str(conn_id)))
+        identifiers.update(_mac_forms(str(conn_id)))
+    for _ident_domain, ident_id in device.identifiers:
+        if ident_id:
+            identifiers.add(_norm(str(ident_id)))
+    return identifiers
+
+
+def _find_configured_remo(
+    hass: HomeAssistant, identifiers: set[str]
+) -> tuple[ConfigEntry, str] | None:
+    """Match an existing entry by stored local host, serial, MAC or name.
+
+    The entry unique id is the Nature account id, so a Remo is identified
+    by the local-API IP option (keyed by the HA device registry id) and by
+    serial/MAC/name on the device registry entry.
+    """
+    registry = async_get_device_registry(hass)
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        for key, value in entry.options.items():
+            if isinstance(value, str) and _norm(value) in identifiers:
+                return entry, str(key)
+        for device in registry.devices.values():
+            if entry.entry_id not in device.config_entries:
+                continue
+            if _device_identifiers(device) & identifiers:
+                return entry, device.id
+    return None
+
+
 class NatureRemoConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Nature Remo."""
 
     VERSION = 1
+
+    _discovery_host: str
+    _discovery_name: str
 
     async def _async_validate(
         self, token: str
@@ -87,6 +229,61 @@ class NatureRemoConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(USER_SCHEMA, user_input),
             errors=errors,
+        )
+
+    async def async_step_zeroconf(
+        self, discovery_info: _ZeroconfServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle a Remo advertised over mDNS (_remo._tcp)."""
+        host = _zeroconf_host(discovery_info)
+        name = _zeroconf_instance_name(discovery_info) or host
+        self._discovery_host = host
+        self._discovery_name = name
+        self.context["title_placeholders"] = {"name": name, "host": host}
+
+        identifiers = _discovery_identifiers(discovery_info, host)
+        if match := _find_configured_remo(self.hass, identifiers):
+            entry, option_key = match
+            current = str(entry.options.get(option_key, "")).strip()
+            if current != host:
+                self.hass.config_entries.async_update_entry(
+                    entry, options={**entry.options, option_key: host}
+                )
+                if entry.state in (
+                    ConfigEntryState.LOADED,
+                    ConfigEntryState.SETUP_RETRY,
+                ):
+                    self.hass.async_create_task(
+                        self.hass.config_entries.async_reload(entry.entry_id)
+                    )
+            return self.async_abort(reason="already_configured")
+
+        return await self.async_step_zeroconf_confirm()
+
+    async def async_step_zeroconf_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask for the cloud token after a new Remo is discovered."""
+        errors: dict[str, str] = {}
+        host = getattr(self, "_discovery_host", "") or ""
+        name = getattr(self, "_discovery_name", "") or host
+        if user_input is not None:
+            token = user_input[CONF_API_KEY].strip()
+            self._async_abort_entries_match({CONF_API_KEY: token})
+            errors, user = await self._async_validate(token)
+            if user is not None:
+                if user_id := user.get("id"):
+                    await self.async_set_unique_id(str(user_id), raise_on_progress=False)
+                    self._abort_if_unique_id_configured()
+                return self.async_create_entry(
+                    title=user.get("nickname") or name or DEFAULT_NAME,
+                    data={CONF_API_KEY: token},
+                )
+        return self.async_show_form(
+            step_id="zeroconf_confirm",
+            data_schema=TOKEN_SCHEMA,
+            errors=errors,
+            description_placeholders={"name": name, "host": host},
         )
 
     async def async_step_reauth(

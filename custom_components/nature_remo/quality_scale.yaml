@@ -133,13 +133,16 @@ rules:
     comment: >-
       diagnostics.py, token, serials, MACs, location and Remo IPs redacted.
   discovery:
-    status: todo
+    status: done
     comment: >-
-      Remo devices are believed to advertise over mDNS (_remo._tcp); confirm on the LAN, then add zeroconf to fill in local IPs.
+      Zeroconf (_remo._tcp.local.) starts setup. A 2026-11-13 LAN browse on
+      192.168.11.0/24 saw no Remo advertisements; public docs confirm the
+      type and Remo-XXXXXX instance names. TXT keys were not observed.
   discovery-update-info:
-    status: todo
+    status: done
     comment: >-
-      Depends on discovery; would update a Remo's local IP when it changes.
+      Discovery matches a known Remo by stored local IP, serial, MAC or
+      name and updates the IP option keyed by the HA device registry id.
   docs-data-update:
     status: todo
   docs-examples:
