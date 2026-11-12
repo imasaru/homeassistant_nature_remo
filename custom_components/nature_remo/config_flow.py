@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Mapping
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 from homeassistant.config_entries import (
@@ -38,6 +38,9 @@ from .api import NatureRemoAuthError, NatureRemoConnectionError, async_get_user
 from .const import DEFAULT_NAME, DOMAIN
 from .options_flow import NatureRemoOptionsFlowHandler
 
+if TYPE_CHECKING:
+    from homeassistant.components.zeroconf import ZeroconfServiceInfo
+
 _LOGGER = logging.getLogger(__name__)
 
 # TXT keys seen in docs or reserved for future firmware. None were observed
@@ -56,16 +59,6 @@ USER_SCHEMA = vol.Schema(
     }
 )
 TOKEN_SCHEMA = vol.Schema({vol.Required(CONF_API_KEY): TOKEN_SELECTOR})
-
-
-class _ZeroconfServiceInfo(Protocol):
-    """The subset of Home Assistant's ZeroconfServiceInfo used by this flow."""
-
-    host: str
-    hostname: str
-    name: str
-    properties: Mapping[str, Any]
-    ip_address: object
 
 
 def _norm(value: str) -> str:
@@ -96,14 +89,14 @@ def _property_text(value: Any) -> str | None:
     return text or None
 
 
-def _zeroconf_host(discovery_info: _ZeroconfServiceInfo) -> str:
+def _zeroconf_host(discovery_info: ZeroconfServiceInfo) -> str:
     host = getattr(discovery_info, "host", None)
     if host:
         return str(host)
     return str(discovery_info.ip_address)
 
 
-def _zeroconf_instance_name(discovery_info: _ZeroconfServiceInfo) -> str:
+def _zeroconf_instance_name(discovery_info: ZeroconfServiceInfo) -> str:
     name = discovery_info.name or ""
     instance = name.split(".")[0] if name else ""
     if instance:
@@ -115,7 +108,7 @@ def _zeroconf_instance_name(discovery_info: _ZeroconfServiceInfo) -> str:
 
 
 def _discovery_identifiers(
-    discovery_info: _ZeroconfServiceInfo, host: str
+    discovery_info: ZeroconfServiceInfo, host: str
 ) -> set[str]:
     """Serial, MAC, hostname and IP forms that can match a stored Remo."""
     identifiers: set[str] = set()
@@ -132,8 +125,7 @@ def _discovery_identifiers(
         if "-" in instance:
             identifiers.update(_mac_forms(instance.split("-", 1)[1]))
     for key, value in (discovery_info.properties or {}).items():
-        key_text = key.decode() if isinstance(key, bytes) else str(key)
-        if key_text.lower() not in _PROPERTY_ID_KEYS:
+        if key.lower() not in _PROPERTY_ID_KEYS:
             continue
         text = _property_text(value)
         if text is None:
@@ -232,7 +224,7 @@ class NatureRemoConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_zeroconf(
-        self, discovery_info: _ZeroconfServiceInfo
+        self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         """Handle a Remo advertised over mDNS (_remo._tcp)."""
         host = _zeroconf_host(discovery_info)
